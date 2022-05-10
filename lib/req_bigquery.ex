@@ -7,6 +7,7 @@ defmodule ReqBigQuery do
   @base_url "https://bigquery.googleapis.com/bigquery/v2"
 
   @doc false
+  # TODO: Add Req.Request.register_options/2
   @spec attach(Request.t(), keyword()) :: Request.t()
   def attach(%Request{} = request, options \\ []) do
     request
@@ -20,6 +21,7 @@ defmodule ReqBigQuery do
     |> merge_options(options)
   end
 
+  # TODO: Add Req.Request.merge_options/2
   defp merge_options(request, options) do
     Map.update!(request, :options, fn opts ->
       options
@@ -28,6 +30,9 @@ defmodule ReqBigQuery do
     end)
   end
 
+  # TODO: Add Req.Request.build_url/2
+  # This could be Req.Request.build_url(req, base_url: "http://...", path: "/mypath")
+  # or Req.Request.build_url(req_with_base_url, path: "/mypath")
   defp api_url(options) do
     "#{@base_url}/projects/#{options[:project_id]}/queries"
   end
