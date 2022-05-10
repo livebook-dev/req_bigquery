@@ -10,8 +10,8 @@ defmodule ReqBigQuery do
   @spec attach(Request.t(), keyword()) :: Request.t()
   def attach(%Request{} = request, options \\ []) do
     request
-    |> Request.prepend_request_steps(bigquery_run: &bigquery_run/1)
-    |> Request.prepend_response_steps(bigquery_parser: &bigquery_parser/1)
+    |> Request.prepend_request_steps(bigquery_run: &run/1)
+    |> Request.prepend_response_steps(bigquery_parser: &parse/1)
     |> Request.register_option(:goth)
     |> Request.register_option(:dataset)
     |> Request.register_option(:project_id)
@@ -28,22 +28,11 @@ defmodule ReqBigQuery do
     end)
   end
 
-  @doc false
-  def query!(%Request{options: options} = request, query, opts \\ []) do
-    options =
-      opts
-      |> Enum.into(%{})
-      |> Map.merge(options)
-      |> Map.put_new(:bigquery, query)
-
-    Req.post!(%{request | options: options})
-  end
-
   defp api_url(options) do
     "#{@base_url}/projects/#{options[:project_id]}/queries"
   end
 
-  defp bigquery_run(%Request{} = request) do
+  defp run(%Request{} = request) do
     request
     |> put_url()
     |> put_goth_token()
@@ -78,7 +67,7 @@ defmodule ReqBigQuery do
     update_in(request.body, fn _ -> Jason.encode!(json) end)
   end
 
-  defp bigquery_parser({request, response}) do
+  defp parser({request, response}) do
     {request, response}
   end
 end
