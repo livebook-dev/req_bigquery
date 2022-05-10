@@ -63,20 +63,11 @@ defmodule ReqBigQueryTest do
 
     assert response.status == 200
 
-    assert response.body == %{
-             "jobReference" => %{"jobId" => "job_KuHEcplA2ICv8pSqb0QeOVNNpDaX"},
-             "kind" => "bigquery#queryResponse",
-             "rows" => [
-               %{"f" => [%{"v" => "1"}, %{"v" => "Ale"}]},
-               %{"f" => [%{"v" => "2"}, %{"v" => "Wojtek"}]}
-             ],
-             "schema" => %{
-               "fields" => [
-                 %{"mode" => "NULLABLE", "name" => "id", "type" => "INTEGER"},
-                 %{"mode" => "NULLABLE", "name" => "name", "type" => "STRING"}
-               ]
-             },
-             "totalRows" => "2"
+    assert response.body == %ReqBigQuery.Result{
+             columns: ["id", "name"],
+             job_id: "job_KuHEcplA2ICv8pSqb0QeOVNNpDaX",
+             num_rows: 2,
+             rows: [[1, "Ale"], [2, "Wojtek"]]
            }
   end
 
