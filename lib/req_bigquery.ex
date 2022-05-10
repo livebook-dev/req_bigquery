@@ -72,7 +72,7 @@ defmodule ReqBigQuery do
     update_in(request.body, fn _ -> Jason.encode!(json) end)
   end
 
-  defp parser({request, response}) do
+  defp parse({request, response}) do
     {request, response}
   end
 end
