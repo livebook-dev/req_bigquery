@@ -3,28 +3,15 @@ defmodule ReqBigQuery do
 
   alias Req.Request
 
+  @allowed_options ~w(goth dataset project_id bigquery)a
   @base_url "https://bigquery.googleapis.com/bigquery/v2"
 
-  # TODO: Add Req.Request.register_options/2
   @spec attach(Request.t(), keyword()) :: Request.t()
   def attach(%Request{} = request, options \\ []) do
     request
     |> Request.prepend_request_steps(bigquery_run: &run/1)
-    |> Request.register_option(:goth)
-    |> Request.register_option(:dataset)
-    |> Request.register_option(:project_id)
-    |> Request.register_option(:bigquery)
-    |> Request.register_option(:bigquery_params)
-    |> merge_options(options)
-  end
-
-  # TODO: Add Req.Request.merge_options/2
-  defp merge_options(request, options) do
-    Map.update!(request, :options, fn opts ->
-      options
-      |> Enum.into(%{})
-      |> Map.merge(opts)
-    end)
+    |> Request.register_options(@allowed_options)
+    |> Request.merge_options(options)
   end
 
   defp run(%Request{} = request) do
