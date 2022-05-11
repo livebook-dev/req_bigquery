@@ -22,14 +22,13 @@ defmodule ReqBigQuery do
   end
 
   defp put_url(%{options: options} = request) do
-    %{request | url: URI.parse("#{@base_url}/projects/#{options.project_id}/queries")}
+    base_url = options[:base_url] || @base_url
+    %{request | url: URI.parse("#{base_url}/projects/#{options.project_id}/queries")}
   end
 
-  # TODO: Add Req.Request.put_header/3
   defp put_goth_token(%{options: options} = request) do
     token = Goth.fetch!(options.goth).token
-
-    update_in(request.headers, &[{"authorization", "Bearer #{token}"} | &1])
+    Request.put_new_header(request, "authorization", "Bearer #{token}")
   end
 
   defp put_encoded_body(%{options: options} = request) do
