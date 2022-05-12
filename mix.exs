@@ -20,8 +20,7 @@ defmodule ReqBigQuery.MixProject do
   defp deps do
     [
       {:req, github: "wojtekmach/req"},
-      {:goth, github: "peburrows/goth"},
-      {:bypass, "~> 2.1", only: :test}
+      {:goth, github: "peburrows/goth"}
     ]
   end
 end
