@@ -20,7 +20,8 @@ defmodule ReqBigQuery.MixProject do
   defp deps do
     [
       {:req, github: "wojtekmach/req"},
-      {:goth, github: "peburrows/goth"}
+      {:goth, github: "peburrows/goth"},
+      {:plug, "~> 1.13", only: :test}
     ]
   end
 end
