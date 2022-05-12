@@ -28,7 +28,7 @@ defmodule ReqBigQuery do
 
   defp put_goth_token(%{options: options} = request) do
     token = Goth.fetch!(options.goth).token
-    Request.put_new_header(request, "authorization", "Bearer #{token}")
+    Request.put_header(request, "authorization", "Bearer #{token}")
   end
 
   defp put_encoded_body(%{options: options} = request) do
