@@ -7,7 +7,8 @@ defmodule ReqBigQuery.MixProject do
       version: "0.1.0",
       elixir: "~> 1.12",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      aliases: aliases()
     ]
   end
 
@@ -24,5 +25,9 @@ defmodule ReqBigQuery.MixProject do
       {:plug, "~> 1.13", only: :test},
       {:table, "~> 0.1.1", optional: true}
     ]
+  end
+
+  def aliases do
+    ["test.all": ["test --include integration"]]
   end
 end
