@@ -12,13 +12,13 @@ defmodule ReqBigQuery.Result do
   """
 
   @type t :: %__MODULE__{
-          columns: [String.t()] | nil,
-          rows: [[term] | binary] | nil,
-          num_rows: integer,
-          job_id: binary
+          columns: [String.t()],
+          rows: [[term()] | binary()],
+          num_rows: non_neg_integer(),
+          job_id: binary()
         }
 
-  defstruct [:columns, :rows, :num_rows, :job_id]
+  defstruct [:job_id, num_rows: 0, rows: [], columns: []]
 end
 
 if Code.ensure_loaded?(Table.Reader) do
