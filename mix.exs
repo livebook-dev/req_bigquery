@@ -6,6 +6,11 @@ defmodule ReqBigQuery.MixProject do
       app: :req_bigquery,
       version: "0.1.0",
       elixir: "~> 1.12",
+      preferred_cli_env: [
+        "test.all": :test,
+        docs: :docs,
+        "hex.publish": :docs
+      ],
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases()

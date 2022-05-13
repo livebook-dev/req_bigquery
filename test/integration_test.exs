@@ -1,8 +1,8 @@
 defmodule IntegrationTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   @moduletag :integration
 
-  test "it works" do
+  test "returns the Google BigQuery's API", %{test: goth} do
     project_id = System.fetch_env!("PROJECT_ID")
 
     credentials =
@@ -11,11 +11,11 @@ defmodule IntegrationTest do
       |> Jason.decode!()
 
     source = {:service_account, credentials, []}
-    assert {:ok, _} = Goth.start_link(name: MyGoth, source: source, http_client: &Req.request/1)
+    start_supervised!({Goth, name: goth, source: source, http_client: &Req.request/1})
 
     assert %Req.Response{body: %ReqBigQuery.Result{} = result} =
              Req.new()
-             |> ReqBigQuery.attach(project_id: project_id, dataset: "livebook", goth: MyGoth)
+             |> ReqBigQuery.attach(project_id: project_id, dataset: "livebook", goth: goth)
              |> Req.post!(bigquery: "SELECT sepal_length, sepal_width FROM iris LIMIT 2")
 
     assert result.num_rows == 2
