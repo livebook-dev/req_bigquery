@@ -1,6 +1,6 @@
 defmodule ReqBigQueryTest do
   use ExUnit.Case, async: true
-  import Plug.Conn
+  use Plug.Test
 
   test "it works", ctx do
     fake_goth = fn conn ->
@@ -29,6 +29,7 @@ defmodule ReqBigQueryTest do
       assert request_url(conn) ==
                "https://bigquery.googleapis.com/bigquery/v2/projects/my_awesome_project_id/queries"
 
+      assert get_req_header(conn, "content-type") == ["application/json"]
       assert get_req_header(conn, "authorization") == ["Bearer dummy"]
       assert conn.method == "POST"
 

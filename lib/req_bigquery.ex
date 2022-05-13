@@ -14,31 +14,24 @@ defmodule ReqBigQuery do
     |> Request.merge_options(options)
   end
 
-  defp run(%Request{} = request) do
-    request
-    |> put_url()
-    |> put_goth_token()
-    |> put_encoded_body()
-  end
+  defp run(%Request{options: options} = request) do
+    if query = options[:bigquery] do
+      base_url = options[:base_url] || @base_url
+      token = Goth.fetch!(options.goth).token
+      uri = URI.parse("#{base_url}/projects/#{options.project_id}/queries")
 
-  defp put_url(%{options: options} = request) do
-    base_url = options[:base_url] || @base_url
-    %{request | url: URI.parse("#{base_url}/projects/#{options.project_id}/queries")}
-  end
+      json = %{
+        defaultDataset: %{
+          datasetId: options.dataset
+        },
+        query: query
+      }
 
-  defp put_goth_token(%{options: options} = request) do
-    token = Goth.fetch!(options.goth).token
-    Request.put_header(request, "authorization", "Bearer #{token}")
-  end
-
-  defp put_encoded_body(%{options: options} = request) do
-    json = %{
-      defaultDataset: %{
-        datasetId: options.dataset
-      },
-      query: options.bigquery
-    }
-
-    %{request | body: Jason.encode!(json)}
+      %{request | url: uri}
+      |> Request.merge_options(auth: {:bearer, token}, json: json)
+      |> Request.put_header("content-type", "application/json")
+    else
+      request
+    end
   end
 end
