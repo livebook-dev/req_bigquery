@@ -13,11 +13,14 @@ defmodule IntegrationTest do
     source = {:service_account, credentials, []}
     start_supervised!({Goth, name: goth, source: source, http_client: &Req.request/1})
 
-    assert %Req.Response{body: %ReqBigQuery.Result{} = result} =
-             Req.new()
-             |> ReqBigQuery.attach(project_id: project_id, dataset: "livebook", goth: goth)
-             |> Req.post!(bigquery: "SELECT sepal_length, sepal_width FROM iris LIMIT 2")
+    response =
+      Req.new()
+      |> ReqBigQuery.attach(project_id: project_id, dataset: "livebook", goth: goth)
+      |> Req.post!(bigquery: "SELECT sepal_length, sepal_width FROM iris LIMIT 2")
 
+    assert response.status == 200
+    result = response.body
+    assert %ReqBigQuery.Result{} = result
     assert result.num_rows == 2
     assert result.columns == ["sepal_length", "sepal_width"]
     assert [[x1, y1], [x2, y2]] = result.rows
