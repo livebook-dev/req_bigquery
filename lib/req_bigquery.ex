@@ -11,7 +11,7 @@ defmodule ReqBigQuery do
   def attach(%Request{} = request, options \\ []) do
     request
     |> Request.prepend_request_steps(bigquery_run: &run/1)
-    |> Request.append_response_steps(bigquery_parse: &parse/1)
+    |> Request.append_response_steps(bigquery_decode: &decode/1)
     |> Request.register_options(@allowed_options)
     |> Request.merge_options(options)
   end
@@ -37,25 +37,25 @@ defmodule ReqBigQuery do
     end
   end
 
-  defp parse({request, %{status: 200} = response}) do
-    {request, update_in(response.body, &parse_body/1)}
+  defp decode({request, %{status: 200} = response}) do
+    {request, update_in(response.body, &decode_body/1)}
   end
 
-  defp parse(any), do: any
+  defp decode(any), do: any
 
-  defp parse_body(%{
+  defp decode_body(%{
          "jobReference" => %{"jobId" => job_id},
          "kind" => "bigquery#queryResponse",
          "rows" => rows,
          "schema" => %{"fields" => fields},
          "totalRows" => num_rows
        }) do
-    struct!(Result,
+    %Result{
       job_id: job_id,
       num_rows: String.to_integer(num_rows),
       rows: prepare_rows(rows, fields),
       columns: prepare_columns(fields)
-    )
+    }
   end
 
   defp prepare_rows(rows, fields) do

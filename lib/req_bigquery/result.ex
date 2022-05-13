@@ -1,6 +1,8 @@
 defmodule ReqBigQuery.Result do
   @moduledoc """
-  Result struct returned from any successful query. Its fields are:
+  Result struct returned from any successful query.
+
+  Its fields are:
 
     * `columns` - The column names;
     * `rows` - The result set. A list of lists, each inner list corresponding to a
