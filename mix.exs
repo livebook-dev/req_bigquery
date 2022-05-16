@@ -1,10 +1,13 @@
 defmodule ReqBigQuery.MixProject do
   use Mix.Project
 
+  @version "0.1.0-dev"
+  @source_url "https://github.com/livebook-dev/req_bigquery"
+
   def project do
     [
       app: :req_bigquery,
-      version: "0.1.0",
+      version: @version,
       elixir: "~> 1.12",
       preferred_cli_env: [
         "test.all": :test,
@@ -12,6 +15,7 @@ defmodule ReqBigQuery.MixProject do
         "hex.publish": :docs
       ],
       start_permanent: Mix.env() == :prod,
+      docs: docs(),
       deps: deps(),
       aliases: aliases()
     ]
@@ -20,6 +24,15 @@ defmodule ReqBigQuery.MixProject do
   def application do
     [
       extra_applications: [:logger]
+    ]
+  end
+
+  defp docs do
+    [
+      main: "readme",
+      source_url: @source_url,
+      source_ref: "v#{@version}",
+      extras: ["README.md"]
     ]
   end
 
