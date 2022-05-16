@@ -2,7 +2,9 @@
 
 [Req](https://github.com/wojtekmach/req) plugin for [Google BigQuery](https://cloud.google.com/bigquery/docs/reference/rest).
 
-ReqBigQuery provides a custom API to send queries to be executed by Google BigQuery and decodes into a fancy result struct, which can be used by other libraries as they want.
+ReqBigQuery makes it easy to make BigQuery queries. It uses [Goth](https://github.com/peburrows/goth)
+for authentication. Query results are decoded into the `ReqBigQuery.Result` struct.
+The struct which implements the `Table.Reader` protocol and thus can be efficiently traversed by rows or columns.
 
 ## Usage
 
@@ -13,23 +15,37 @@ Mix.install([
   {:req_bigquery, github: "livebook-dev/req_bigquery"}
 ])
 
-# We use Goth to handle Google OAuth2 tokens
-credentials = %{
-  "type" => "service_account",
-  "project_id" => "foo",
-  "private_key_id" => "baz",
-  ...
-}
+# We use Goth to authenticate to Google Cloud API.
+# See: https://hexdocs.pm/goth/1.3.0-rc.4/Goth.Token.html#fetch/1-source for more information.
+credentials = File.read!("credentials.json") |> Jason.decode!()
 source = {:source, credentials, []}
 {:ok, _} = Goth.start_link(name: MyGoth, source: source, http_client: &Req.request/1)
 
-req = Req.new() |> ReqBigQuery.attach(goth: MyGoth, project_id: "foo", dataset: "bar")
-Req.post!(req, bigquery: "SELECT * FROM my_table LIMIT 2").body
-=>
+project_id = System.fetch_env!("PROJECT_ID")
+
+req = Req.new() |> ReqBigQuery.attach(goth: MyGoth, project_id: project_id)
+Req.post!(req, bigquery: "SELECT id, text FROM [bigquery-public-data:hacker_news.full] LIMIT 1").body
+#=>
 # %ReqBigQuery.Result{
-#   columns: ["id", "name"],
-#   job_id: "job_KuHEcplA2ICv8pSqb0QeOVNNpDaX",
-#   num_rows: 2,
-#   rows: [[1, "Ale"], [2, "Wojtek"]]
+#   columns: ["id", "text"],
+#   job_id: "job_8HX-X3bT70vmbQNJ6N5pDPzDdWCQ",
+#   num_rows: 1,
+#   rows: [
+#     [7663292, "Easy, just add a USB port!"],
+#   ]
 # }
 ```
+
+## License
+
+Copyright (C) 2022 Dashbit
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0)
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.

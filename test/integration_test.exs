@@ -15,18 +15,20 @@ defmodule IntegrationTest do
 
     response =
       Req.new()
-      |> ReqBigQuery.attach(project_id: project_id, dataset: "livebook", goth: goth)
-      |> Req.post!(bigquery: "SELECT sepal_length, sepal_width FROM iris LIMIT 2")
+      |> ReqBigQuery.attach(project_id: project_id, goth: goth)
+      |> Req.post!(
+        bigquery: "SELECT id, text FROM [bigquery-public-data:hacker_news.full] LIMIT 2"
+      )
 
     assert response.status == 200
     result = response.body
     assert %ReqBigQuery.Result{} = result
     assert result.num_rows == 2
-    assert result.columns == ["sepal_length", "sepal_width"]
+    assert result.columns == ["id", "text"]
     assert [[x1, y1], [x2, y2]] = result.rows
-    assert is_float(x1)
-    assert is_float(x2)
-    assert is_float(y1)
-    assert is_float(y2)
+    assert is_integer(x1)
+    assert is_integer(x2)
+    assert is_binary(y1)
+    assert is_binary(y2)
   end
 end

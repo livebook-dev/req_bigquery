@@ -1,26 +1,16 @@
 defmodule ReqBigQuery do
   @moduledoc """
-  The Google BigQuery plugin for [Req](https://github.com/wojtekmach/req).
+  `Req` plugin for [Google BigQuery](https://cloud.google.com/bigquery/docs/reference/rest).
 
-  ReqBigQuery uses [Goth](https://github.com/peburrows/goth) to generate the
-  OAuth2 Token from Google Credentials, but we don't start the Goth server,
-  we only retrieve the token from given Goth server name.
+  ReqBigQuery makes it easy to make BigQuery queries. It uses `Goth` for authentication.
+  Query results are decoded into the `ReqBigQuery.Result` struct.
+  The struct which implements the `Table.Reader` protocol and thus can be efficiently traversed by rows or columns.
+
+  ReqBigQuery uses `Goth` to generate the OAuth2 Token from Google Credentials,
+  but we don't start the Goth server, we only retrieve the token from given Goth server name.
 
   This plugin also provides a `ReqBigQuery.Result` struct to normalize the
-  result from Google BigQuery API and allows the result to be rendered by
-  [table](https://github.com/dashbitco/table).
-
-  ## Plugin Options
-
-    * `:goth` - the goth server name.
-
-    * `:project_id` - the project id from Google Cloud Platform.
-
-    * `:dataset` - the dataset from Google BigQuery.
-
-    * `:bigquery` - the statement to be executed by Google's API.
-
-  Every option above is required by default. (for more information about the options, see attach/2)
+  result from Google BigQuery API and allows the result to be rendered by `Table`.
 
   ## Examples
 
@@ -28,35 +18,40 @@ defmodule ReqBigQuery do
       iex> Req.post!(req, bigquery: "SELECT * FROM iris LIMIT 5")
       %Req.Request{body: %ReqBigQuery.Result{}, status: 200}
 
-  For more information and examples, please see our `Guides` page.
   """
 
   alias Req.Request
   alias ReqBigQuery.Result
 
-  @allowed_options ~w(goth dataset project_id bigquery)a
+  @allowed_options ~w(goth default_dataset_id project_id bigquery)a
   @base_url "https://bigquery.googleapis.com/bigquery/v2"
 
   @doc """
-  Attaches the steps from this plugin into an existing Req's request struct.
+  Attaches to Req request.
 
-  It adds the request step to prepare Req to know what URL it should use,
-  the request body and the authorization header with the token provided by Goth.
-  It allows the user to configure Req with our allowed options (see section below).
+  It makes easy to execute queries into Google BigQuery API.
 
   The response from Google's API will be decoded into `ReqBigQuery.Result` struct.
 
-  ## Options
+  ## Request Options
 
-    * `:goth` - The provided name for `Goth` library, it should be an atom.
+    * `:goth` - Required. The goth server name.
 
-    * `:project_id` - the id from the project created on Google Cloud Platform,
-      it should be a string.
+    * `:project_id` - Required. The GCP project id.
 
-    * `:dataset` - the dataset from Google BigQuery, allowing the plugin to execute
-      the query in the correct dataset and it should be a string.
+    * `:bigquery` - Required. The query to execute.
 
-    * `:bigquery` - the query to be exexcuted by Google BigQuery, it should be a string.
+    * `:default_dataset_id` - Optional. If set, the dataset to assume for any unqualified table
+      names in the query. If not set, all table names in the query string must be qualified in the
+      format 'datasetId.tableId'.
+
+  If you want to set any of these options when attaching the plugin, pass them as the second argument.
+
+  ## Examples
+
+      iex> req = Req.new() |> ReqBigQuery.attach(goth: MyGoth, project_id: "foo", dataset: "bar")
+      iex> Req.post!(req, bigquery: "SELECT * FROM iris LIMIT 5")
+      %Req.Request{body: %ReqBigQuery.Result{}, status: 200}
 
   """
   @spec attach(Request.t(), keyword()) :: Request.t()
@@ -74,12 +69,12 @@ defmodule ReqBigQuery do
       token = Goth.fetch!(options.goth).token
       uri = URI.parse("#{base_url}/projects/#{options.project_id}/queries")
 
-      json = %{
-        defaultDataset: %{
-          datasetId: options.dataset
-        },
-        query: query
-      }
+      json =
+        if default_dataset_id = options[:default_dataset_id] do
+          %{defaultDataset: %{datasetId: default_dataset_id}, query: query}
+        else
+          %{query: query}
+        end
 
       Request.merge_options(%{request | url: uri}, auth: {:bearer, token}, json: json)
     else
@@ -121,6 +116,7 @@ defmodule ReqBigQuery do
     Enum.map(fields, & &1["name"])
   end
 
+  defp convert_value(nil, _), do: nil
   defp convert_value(value, %{"type" => "FLOAT"}), do: String.to_float(value)
   defp convert_value(value, %{"type" => "INTEGER"}), do: String.to_integer(value)
   defp convert_value(value, %{"type" => "BOOLEAN"}), do: String.downcase(value) == "true"
