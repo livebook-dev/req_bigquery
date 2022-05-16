@@ -9,17 +9,17 @@ a fancy result struct, which can be used by other libraries as they want.
 
 ```elixir
 Mix.install([
-	{:goth, github: "peburrows/goth"},
+  {:goth, github: "peburrows/goth"},
   {:req, github: "wojtekmach/req"},
   {:req_bigquery, github: "livebook-dev/req_bigquery"}
 ])
 
 # We use Goth to handle Google OAuth2 tokens
 credentials = %{
-	"type" => "service_account",
-	"project_id" => "foo",
-	"private_key_id" => "baz",
-	...
+  "type" => "service_account",
+  "project_id" => "foo",
+  "private_key_id" => "baz",
+  ...
 }
 source = {:source, credentials, []}
 {:ok, _} = Goth.start_link(name: MyGoth, source: source, http_client: &Req.request/1)
