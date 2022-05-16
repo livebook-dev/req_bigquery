@@ -2,8 +2,7 @@
 
 [Req](https://github.com/wojtekmach/req) plugin for [Google BigQuery](https://cloud.google.com/bigquery/docs/reference/rest).
 
-ReqBigQuery handles a custom API to send queries to be executed by Google BigQuery and decodes into
-a fancy result struct, which can be used by other libraries as they want.
+ReqBigQuery provides a custom API to send queries to be executed by Google BigQuery and decodes into a fancy result struct, which can be used by other libraries as they want.
 
 ## Usage
 
