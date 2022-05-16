@@ -29,9 +29,7 @@ defmodule ReqBigQuery do
         query: query
       }
 
-      %{request | url: uri}
-      |> Request.merge_options(auth: {:bearer, token}, json: json)
-      |> Request.put_header("content-type", "application/json")
+      Request.merge_options(%{request | url: uri}, auth: {:bearer, token}, json: json)
     else
       request
     end
