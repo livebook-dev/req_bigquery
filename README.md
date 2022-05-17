@@ -31,7 +31,7 @@ Req.post!(req, bigquery: "SELECT id, text FROM [bigquery-public-data:hacker_news
 #   job_id: "job_8HX-X3bT70vmbQNJ6N5pDPzDdWCQ",
 #   num_rows: 1,
 #   rows: [
-#     [7663292, "Easy, just add a USB port!"],
+#     [7663292, "Easy, just add a USB port!"]
 #   ]
 # }
 ```
