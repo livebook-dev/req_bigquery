@@ -26,10 +26,10 @@ project_id = System.fetch_env!("PROJECT_ID")
 query = """
 SELECT title, SUM(views) AS views
   FROM `bigquery-public-data.wikipedia.table_bands`
- WHERE datehour <= CURRENT_TIMESTAMP()
+ WHERE EXTRACT(YEAR FROM datehour) <= 2021
  GROUP BY title
  ORDER BY views DESC
- LIMIT 10;
+ LIMIT 10
 """
 
 req = Req.new() |> ReqBigQuery.attach(goth: MyGoth, project_id: project_id)
