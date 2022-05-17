@@ -18,7 +18,7 @@ Mix.install([
 # We use Goth to authenticate to Google Cloud API.
 # See: https://hexdocs.pm/goth/1.3.0-rc.4/Goth.Token.html#fetch/1-source for more information.
 credentials = File.read!("credentials.json") |> Jason.decode!()
-source = {:source, credentials, []}
+source = {:service_account, credentials, []}
 {:ok, _} = Goth.start_link(name: MyGoth, source: source, http_client: &Req.request/1)
 
 project_id = System.fetch_env!("PROJECT_ID")
