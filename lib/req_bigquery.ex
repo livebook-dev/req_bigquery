@@ -73,7 +73,7 @@ defmodule ReqBigQuery do
         if default_dataset_id = options[:default_dataset_id] do
           %{defaultDataset: %{datasetId: default_dataset_id}, query: query}
         else
-          %{query: query}
+          %{query: query, useLegacySql: false}
         end
 
       Request.merge_options(%{request | url: uri}, auth: {:bearer, token}, json: json)
