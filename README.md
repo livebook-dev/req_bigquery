@@ -23,15 +23,33 @@ source = {:service_account, credentials, []}
 
 project_id = System.fetch_env!("PROJECT_ID")
 
+query = """
+SELECT title, SUM(views) AS views
+  FROM `bigquery-public-data.wikipedia.table_bands`
+ WHERE datehour <= CURRENT_TIMESTAMP()
+ GROUP BY title
+ ORDER BY views DESC
+ LIMIT 10;
+"""
+
 req = Req.new() |> ReqBigQuery.attach(goth: MyGoth, project_id: project_id)
-Req.post!(req, bigquery: "SELECT id, text FROM [bigquery-public-data:hacker_news.full] LIMIT 1").body
+Req.post!(req, bigquery: query).body
 #=>
 # %ReqBigQuery.Result{
-#   columns: ["id", "text"],
-#   job_id: "job_8HX-X3bT70vmbQNJ6N5pDPzDdWCQ",
-#   num_rows: 1,
+#   columns: ["title", "views"],
+#   job_id: "job_JDDZKquJWkY7x0LlDcmZ4nMQqshb",
+#   num_rows: 10,
 #   rows: [
-#     [7663292, "Easy, just add a USB port!"]
+#     ["The_Beatles", 13758950],
+#     ["Queen_(band)", 12019563],
+#     ["Pink_Floyd", 9522503],
+#     ["AC/DC", 8972364],
+#     ["Led_Zeppelin", 8294994],
+#     ["Linkin_Park", 8242802],
+#     ["The_Rolling_Stones", 7825952],
+#     ["Red_Hot_Chili_Peppers", 7302904],
+#     ["Fleetwood_Mac", 7199563],
+#     ["Twenty_One_Pilots", 6970692]
 #   ]
 # }
 ```
