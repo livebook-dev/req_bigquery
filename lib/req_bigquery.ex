@@ -96,7 +96,6 @@ defmodule ReqBigQuery do
   def attach(%Request{} = request, options \\ []) do
     request
     |> Request.prepend_request_steps(bigquery_run: &run/1)
-    |> Request.append_response_steps(bigquery_decode: &decode/1)
     |> Request.register_options(@allowed_options)
     |> Request.merge_options(options)
   end
@@ -108,7 +107,9 @@ defmodule ReqBigQuery do
       uri = URI.parse("#{base_url}/projects/#{options.project_id}/queries")
       json = build_request_body(query, options[:default_dataset_id])
 
-      Request.merge_options(%{request | url: uri}, auth: {:bearer, token}, json: json)
+      %{request | url: uri}
+      |> Request.merge_options(auth: {:bearer, token}, json: json)
+      |> Request.append_response_steps(bigquery_decode: &decode/1)
     else
       request
     end
