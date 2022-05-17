@@ -146,7 +146,7 @@ defmodule ReqBigQuery do
 
   defp build_request_body(query, dataset)
        when is_binary(query) and (dataset == "" or is_nil(dataset)) do
-    %{query: query}
+    %{query: query, useLegacySql: false}
   end
 
   defp build_request_body(query, dataset) when is_binary(query) do
