@@ -14,7 +14,7 @@ defmodule ReqBigQuery do
 
   ## Examples
 
-      iex> req = Req.new() |> ReqBigQuery.attach(goth: MyGoth, project_id: "foo", dataset: "bar")
+      iex> req = Req.new() |> ReqBigQuery.attach(goth: MyGoth, project_id: "foo", default_dataset_id: "bar")
       iex> Req.post!(req, bigquery: "SELECT * FROM iris LIMIT 5")
       %Req.Request{body: %ReqBigQuery.Result{}, status: 200}
 
