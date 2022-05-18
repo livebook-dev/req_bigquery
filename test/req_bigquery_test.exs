@@ -54,7 +54,11 @@ defmodule ReqBigQueryTest do
       |> send_resp(200, Jason.encode_to_iodata!(data))
     end
 
-    opts = [goth: ctx.test, project_id: "my_awesome_project_id", dataset: "my_awesome_dataset"]
+    opts = [
+      goth: ctx.test,
+      project_id: "my_awesome_project_id",
+      default_dataset_id: "my_awesome_dataset"
+    ]
 
     assert response =
              Req.new(plug: fake_bigquery)
