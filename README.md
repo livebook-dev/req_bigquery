@@ -4,7 +4,7 @@
 
 ReqBigQuery makes it easy to make BigQuery queries. It uses [Goth](https://github.com/peburrows/goth)
 for authentication. Query results are decoded into the `ReqBigQuery.Result` struct.
-The struct which implements the `Table.Reader` protocol and thus can be efficiently traversed by rows or columns.
+The struct implements the `Table.Reader` protocol and thus can be efficiently traversed by rows or columns.
 
 ## Usage
 

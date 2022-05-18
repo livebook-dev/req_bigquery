@@ -11,13 +11,6 @@ defmodule ReqBigQuery do
 
   This plugin also provides a `ReqBigQuery.Result` struct to normalize the
   result from Google BigQuery API and allows the result to be rendered by `Table`.
-
-  ## Examples
-
-      iex> req = Req.new() |> ReqBigQuery.attach(goth: MyGoth, project_id: "foo", default_dataset_id: "bar")
-      iex> Req.post!(req, bigquery: "SELECT * FROM iris LIMIT 5")
-      %Req.Request{body: %ReqBigQuery.Result{}, status: 200}
-
   """
 
   alias Req.Request
@@ -49,9 +42,37 @@ defmodule ReqBigQuery do
 
   ## Examples
 
-      iex> req = Req.new() |> ReqBigQuery.attach(goth: MyGoth, project_id: "foo", dataset: "bar")
-      iex> Req.post!(req, bigquery: "SELECT * FROM iris LIMIT 5")
-      %Req.Request{body: %ReqBigQuery.Result{}, status: 200}
+      iex> credentials = File.read!("credentials.json") |> Jason.decode!()
+      iex> source = {:service_account, credentials, []}
+      iex> {:ok, _} = Goth.start_link(name: MyGoth, source: source, http_client: &Req.request/1)
+      iex> project_id = System.fetch_env!("PROJECT_ID")
+      iex> query = """
+      ...> SELECT title, SUM(views) AS views
+      ...>   FROM `bigquery-public-data.wikipedia.table_bands`
+      ...>  WHERE EXTRACT(YEAR FROM datehour) <= 2021
+      ...>  GROUP BY title
+      ...>  ORDER BY views DESC
+      ...>  LIMIT 10
+      ...> """
+      iex> req = Req.new() |> ReqBigQuery.attach(goth: MyGoth, project_id: project_id)
+      iex> Req.post!(req, bigquery: query).body
+      %ReqBigQuery.Result{
+        columns: ["title", "views"],
+        job_id: "job_JDDZKquJWkY7x0LlDcmZ4nMQqshb",
+        num_rows: 10,
+        rows: [
+          ["The_Beatles", 13758950],
+          ["Queen_(band)", 12019563],
+          ["Pink_Floyd", 9522503],
+          ["AC/DC", 8972364],
+          ["Led_Zeppelin", 8294994],
+          ["Linkin_Park", 8242802],
+          ["The_Rolling_Stones", 7825952],
+          ["Red_Hot_Chili_Peppers", 7302904],
+          ["Fleetwood_Mac", 7199563],
+          ["Twenty_One_Pilots", 6970692]
+        ]
+      }
 
   """
   @spec attach(Request.t(), keyword()) :: Request.t()
