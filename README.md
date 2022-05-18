@@ -23,6 +23,7 @@ source = {:service_account, credentials, []}
 
 project_id = System.fetch_env!("PROJECT_ID")
 
+# With plain string query
 query = """
 SELECT title, SUM(views) AS views
   FROM `bigquery-public-data.wikipedia.table_bands`
@@ -51,6 +52,26 @@ Req.post!(req, bigquery: query).body
 #     ["Fleetwood_Mac", 7199563],
 #     ["Twenty_One_Pilots", 6970692]
 #   ]
+# }
+
+# With parameterized query
+query = """
+SELECT EXTRACT(YEAR FROM datehour) AS year, SUM(views) AS views
+  FROM `bigquery-public-data.wikipedia.table_bands`
+ WHERE EXTRACT(YEAR FROM datehour) <= 2021
+   AND title = ?
+ GROUP BY year
+ ORDER BY views DESC
+"""
+
+req = Req.new() |> ReqBigQuery.attach(goth: MyGoth, project_id: project_id)
+Req.post!(req, bigquery: {query, ["Linkin_Park"]}).body
+#=>
+# %ReqBigQuery.Result{
+#   columns: ["year", "views"],
+#   job_id: "job_GXiJvALNsTAoAOJ39Eg3Mw94XMUQ",
+#   num_rows: 7,
+#   rows: [[2017, 2895889], [2016, 1173359], [2018, 1133770], [2020, 906538], [2015, 860899], [2019, 790747], [2021, 481600]]
 # }
 ```
 

@@ -22,7 +22,9 @@ defmodule ReqBigQuery do
 
     * `:project_id` - Required. The GCP project id.
 
-    * `:bigquery` - Required. The query to execute.
+    * `:bigquery` - Required. The query to execute. It can be a plain sql string or
+      a `{query, params}` tuple, where `query` can contain `?` placeholders and `params`
+      is a list of corresponding values.
 
     * `:default_dataset_id` - Optional. If set, the dataset to assume for any unqualified table
       names in the query. If not set, all table names in the query string must be qualified in the
@@ -31,6 +33,8 @@ defmodule ReqBigQuery do
   If you want to set any of these options when attaching the plugin, pass them as the second argument.
 
   ## Examples
+
+  With plain query string:
 
       iex> credentials = File.read!("credentials.json") |> Jason.decode!()
       iex> source = {:service_account, credentials, []}
@@ -64,6 +68,29 @@ defmodule ReqBigQuery do
         ]
       }
 
+  With parameterized query:
+
+      iex> credentials = File.read!("credentials.json") |> Jason.decode!()
+      iex> source = {:service_account, credentials, []}
+      iex> {:ok, _} = Goth.start_link(name: MyGoth, source: source, http_client: &Req.request/1)
+      iex> project_id = System.fetch_env!("PROJECT_ID")
+      iex> query = """
+      ...> SELECT EXTRACT(YEAR FROM datehour) AS year, SUM(views) AS views
+      ...>   FROM `bigquery-public-data.wikipedia.table_bands`
+      ...>  WHERE EXTRACT(YEAR FROM datehour) <= 2021
+      ...>    AND title = ?
+      ...>  GROUP BY 1
+      ...>  ORDER BY views DESC
+      ...> """
+      iex> req = Req.new() |> ReqBigQuery.attach(goth: MyGoth, project_id: project_id)
+      iex> Req.post!(req, bigquery: {query, ["Linkin_Park"]}).body
+      %ReqBigQuery.Result{
+        columns: ["year", "views"],
+        job_id: "job_GXiJvALNsTAoAOJ39Eg3Mw94XMUQ",
+        num_rows: 7,
+        rows: [[2017, 2895889], [2016, 1173359], [2018, 1133770], [2020, 906538], [2015, 860899], [2019, 790747], [2021, 481600]]
+      }
+
   """
   @spec attach(Request.t(), keyword()) :: Request.t()
   def attach(%Request{} = request, options \\ []) do
@@ -79,18 +106,40 @@ defmodule ReqBigQuery do
       base_url = options[:base_url] || @base_url
       token = Goth.fetch!(options.goth).token
       uri = URI.parse("#{base_url}/projects/#{options.project_id}/queries")
-
-      json =
-        if default_dataset_id = options[:default_dataset_id] do
-          %{defaultDataset: %{datasetId: default_dataset_id}, query: query}
-        else
-          %{query: query, useLegacySql: false}
-        end
+      json = build_request_body(query, options[:default_dataset_id])
 
       Request.merge_options(%{request | url: uri}, auth: {:bearer, token}, json: json)
     else
       request
     end
+  end
+
+  defp build_request_body({query, []}, dataset) when is_binary(query) do
+    build_request_body(query, dataset)
+  end
+
+  defp build_request_body({query, params}, dataset) when is_binary(query) do
+    map = build_request_body(query, dataset)
+
+    query_params =
+      for value <- params do
+        {value, type} = encode_value(value)
+        %{parameterType: %{type: type}, parameterValue: %{value: value}}
+      end
+
+    Map.merge(map, %{
+      queryParameters: query_params,
+      useLegacySql: false,
+      parameterMode: "POSITIONAL"
+    })
+  end
+
+  defp build_request_body(query, dataset) when dataset in ["", nil] do
+    %{query: query, useLegacySql: false}
+  end
+
+  defp build_request_body(query, dataset) when is_binary(query) do
+    %{defaultDataset: %{datasetId: dataset}, query: query}
   end
 
   defp decode({request, %{status: 200} = response}) do
@@ -114,11 +163,25 @@ defmodule ReqBigQuery do
     }
   end
 
+  defp decode_body(%{
+         "jobReference" => %{"jobId" => job_id},
+         "kind" => "bigquery#queryResponse",
+         "schema" => %{"fields" => fields},
+         "totalRows" => num_rows
+       }) do
+    %Result{
+      job_id: job_id,
+      num_rows: String.to_integer(num_rows),
+      rows: [],
+      columns: prepare_columns(fields)
+    }
+  end
+
   defp prepare_rows(rows, fields) do
     Enum.map(rows, fn %{"f" => columns} ->
       Enum.with_index(columns, fn %{"v" => value}, index ->
         field = Enum.at(fields, index)
-        convert_value(value, field)
+        decode_value(value, field)
       end)
     end)
   end
@@ -127,9 +190,15 @@ defmodule ReqBigQuery do
     Enum.map(fields, & &1["name"])
   end
 
-  defp convert_value(nil, _), do: nil
-  defp convert_value(value, %{"type" => "FLOAT"}), do: String.to_float(value)
-  defp convert_value(value, %{"type" => "INTEGER"}), do: String.to_integer(value)
-  defp convert_value(value, %{"type" => "BOOLEAN"}), do: String.downcase(value) == "true"
-  defp convert_value(value, _), do: value
+  defp decode_value(nil, _), do: nil
+  defp decode_value(value, %{"type" => "FLOAT"}), do: String.to_float(value)
+  defp decode_value(value, %{"type" => "INTEGER"}), do: String.to_integer(value)
+  defp decode_value("true", %{"type" => "BOOLEAN"}), do: true
+  defp decode_value("false", %{"type" => "BOOLEAN"}), do: false
+  defp decode_value(value, _), do: value
+
+  defp encode_value(value) when is_boolean(value), do: {value, "BOOL"}
+  defp encode_value(value) when is_float(value), do: {value, "FLOAT"}
+  defp encode_value(value) when is_integer(value), do: {value, "INTEGER"}
+  defp encode_value(value), do: {value, "STRING"}
 end
