@@ -22,10 +22,6 @@ defmodule ReqBigQuery do
   @doc """
   Attaches to Req request.
 
-  It makes easy to execute queries into Google BigQuery API.
-
-  The response from Google's API will be decoded into `ReqBigQuery.Result` struct.
-
   ## Request Options
 
     * `:goth` - Required. The goth server name.
