@@ -4,7 +4,7 @@ defmodule ReqBigQuery do
 
   ReqBigQuery makes it easy to make BigQuery queries. It uses `Goth` for authentication.
   Query results are decoded into the `ReqBigQuery.Result` struct.
-  The struct which implements the `Table.Reader` protocol and thus can be efficiently traversed by rows or columns.
+  The struct implements the `Table.Reader` protocol and thus can be efficiently traversed by rows or columns.
 
   ReqBigQuery uses `Goth` to generate the OAuth2 Token from Google Credentials,
   but we don't start the Goth server, we only retrieve the token from given Goth server name.
