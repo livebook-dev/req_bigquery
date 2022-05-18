@@ -82,7 +82,6 @@ defmodule ReqBigQuery do
       ...>    AND title = ?
       ...>  GROUP BY 1
       ...>  ORDER BY views DESC
-      ...>  LIMIT 10
       ...> """
       iex> req = Req.new() |> ReqBigQuery.attach(goth: MyGoth, project_id: project_id)
       iex> Req.post!(req, bigquery: {query, ["Linkin_Park"]}).body

@@ -66,7 +66,6 @@ defmodule IntegrationTest do
        AND title = ?
      GROUP BY 1
      ORDER BY views DESC
-     LIMIT 10
     """
 
     response =
