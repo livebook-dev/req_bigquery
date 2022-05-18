@@ -23,9 +23,8 @@ defmodule ReqBigQuery do
     * `:project_id` - Required. The GCP project id.
 
     * `:bigquery` - Required. The query to execute. It can be a plain sql string or
-      a `{query, params}` tuple, when query is the plain sql string with positional
-      query, using `?`. And `params` is a list of values which will be sent as parameterized
-      query to Google BigQuery.
+      a `{query, params}` tuple, where `query` can contain `?` placeholders and `params`
+      is a list of corresponding values.
 
     * `:default_dataset_id` - Optional. If set, the dataset to assume for any unqualified table
       names in the query. If not set, all table names in the query string must be qualified in the
@@ -123,18 +122,10 @@ defmodule ReqBigQuery do
     map = build_request_body(query, dataset)
 
     query_params =
-      Enum.reduce(params, [], fn value, acc ->
-        {type, value} =
-          cond do
-            is_boolean(value) -> {"BOOL", value}
-            is_integer(value) -> {"INTEGER", value}
-            is_float(value) -> {"FLOAT", value}
-            true -> {"STRING", to_string(value)}
-          end
-
-        param = %{parameterType: %{type: type}, parameterValue: %{value: value}}
-        [param | acc]
-      end)
+      for value <- params do
+        {^value, type} = encode_value(value)
+        %{parameterType: %{type: type}, parameterValue: %{value: value}}
+      end
 
     Map.merge(map, %{
       queryParameters: Enum.reverse(query_params),
@@ -143,8 +134,7 @@ defmodule ReqBigQuery do
     })
   end
 
-  defp build_request_body(query, dataset)
-       when is_binary(query) and (dataset == "" or is_nil(dataset)) do
+  defp build_request_body(query, dataset) when dataset in ["", nil] do
     %{query: query, useLegacySql: false}
   end
 
@@ -191,7 +181,7 @@ defmodule ReqBigQuery do
     Enum.map(rows, fn %{"f" => columns} ->
       Enum.with_index(columns, fn %{"v" => value}, index ->
         field = Enum.at(fields, index)
-        convert_value(value, field)
+        decode_value(value, field)
       end)
     end)
   end
@@ -200,9 +190,15 @@ defmodule ReqBigQuery do
     Enum.map(fields, & &1["name"])
   end
 
-  defp convert_value(nil, _), do: nil
-  defp convert_value(value, %{"type" => "FLOAT"}), do: String.to_float(value)
-  defp convert_value(value, %{"type" => "INTEGER"}), do: String.to_integer(value)
-  defp convert_value(value, %{"type" => "BOOL"}), do: String.downcase(value) == "true"
-  defp convert_value(value, _), do: value
+  defp decode_value(nil, _), do: nil
+  defp decode_value(value, %{"type" => "FLOAT"}), do: String.to_float(value)
+  defp decode_value(value, %{"type" => "INTEGER"}), do: String.to_integer(value)
+  defp decode_value("true", %{"type" => "BOOLEAN"}), do: true
+  defp decode_value("false", %{"type" => "BOOLEAN"}), do: false
+  defp decode_value(value, _), do: value
+
+  defp encode_value(value) when is_boolean(value), do: {value, "BOOLEAN"}
+  defp encode_value(value) when is_float(value), do: {value, "FLOAT"}
+  defp encode_value(value) when is_integer(value), do: {value, "INTEGER"}
+  defp encode_value(value), do: {value, "STRING"}
 end

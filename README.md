@@ -60,7 +60,7 @@ SELECT EXTRACT(YEAR FROM datehour) AS year, SUM(views) AS views
   FROM `bigquery-public-data.wikipedia.table_bands`
  WHERE EXTRACT(YEAR FROM datehour) <= 2021
    AND title = ?
- GROUP BY 1
+ GROUP BY year
  ORDER BY views DESC
 """
 

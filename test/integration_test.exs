@@ -48,6 +48,39 @@ defmodule IntegrationTest do
            ]
   end
 
+  test "returns the Google BigQuery's response without rows", %{test: goth} do
+    project_id = System.fetch_env!("PROJECT_ID")
+
+    credentials =
+      System.get_env("GOOGLE_APPLICATION_CREDENTIALS", "credentials.json")
+      |> File.read!()
+      |> Jason.decode!()
+
+    source = {:service_account, credentials, []}
+    start_supervised!({Goth, name: goth, source: source, http_client: &Req.request/1})
+
+    query = """
+    SELECT title, SUM(views) AS views
+      FROM `bigquery-public-data.wikipedia.table_bands`
+     WHERE EXTRACT(YEAR FROM datehour) > EXTRACT(YEAR FROM CURRENT_TIMESTAMP())
+     GROUP BY title
+     ORDER BY views DESC
+    """
+
+    response =
+      Req.new()
+      |> ReqBigQuery.attach(project_id: project_id, goth: goth)
+      |> Req.post!(bigquery: query)
+
+    assert response.status == 200
+
+    result = response.body
+
+    assert result.columns == ["title", "views"]
+    assert result.num_rows == 0
+    assert result.rows == []
+  end
+
   test "returns the Google BigQuery's API with parameterized query", %{test: goth} do
     project_id = System.fetch_env!("PROJECT_ID")
 
@@ -64,7 +97,7 @@ defmodule IntegrationTest do
       FROM `bigquery-public-data.wikipedia.table_bands`
      WHERE EXTRACT(YEAR FROM datehour) <= 2021
        AND title = ?
-     GROUP BY 1
+     GROUP BY year
      ORDER BY views DESC
     """
 
