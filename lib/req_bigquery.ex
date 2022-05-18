@@ -128,7 +128,7 @@ defmodule ReqBigQuery do
       end
 
     Map.merge(map, %{
-      queryParameters: Enum.reverse(query_params),
+      queryParameters: query_params,
       useLegacySql: false,
       parameterMode: "POSITIONAL"
     })

@@ -2,7 +2,7 @@ defmodule IntegrationTest do
   use ExUnit.Case, async: true
   @moduletag :integration
 
-  test "returns the Google BigQuery's API", %{test: goth} do
+  test "returns the Google BigQuery's response", %{test: goth} do
     project_id = System.fetch_env!("PROJECT_ID")
 
     credentials =
@@ -81,7 +81,7 @@ defmodule IntegrationTest do
     assert result.rows == []
   end
 
-  test "returns the Google BigQuery's API with parameterized query", %{test: goth} do
+  test "returns the Google BigQuery's response with parameterized query", %{test: goth} do
     project_id = System.fetch_env!("PROJECT_ID")
 
     credentials =
@@ -122,5 +122,40 @@ defmodule IntegrationTest do
              [2019, 790_747],
              [2021, 481_600]
            ]
+  end
+
+  test "returns the Google BigQuery's response with more than one parameterized query", %{
+    test: goth
+  } do
+    project_id = System.fetch_env!("PROJECT_ID")
+
+    credentials =
+      System.get_env("GOOGLE_APPLICATION_CREDENTIALS", "credentials.json")
+      |> File.read!()
+      |> Jason.decode!()
+
+    source = {:service_account, credentials, []}
+    start_supervised!({Goth, name: goth, source: source, http_client: &Req.request/1})
+
+    query = """
+    SELECT en_description
+      FROM `bigquery-public-data.wikipedia.wikidata`
+     WHERE id = ?
+       AND numeric_id = ?
+    """
+
+    response =
+      Req.new()
+      |> ReqBigQuery.attach(project_id: project_id, goth: goth)
+      |> Req.post!(bigquery: {query, ["Q89", 89]})
+
+    assert response.status == 200
+
+    result = response.body
+
+    assert result.columns == ["en_description"]
+    assert result.num_rows == 1
+
+    assert result.rows == [["fruit of the apple tree"]]
   end
 end
