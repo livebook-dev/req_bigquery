@@ -123,7 +123,7 @@ defmodule ReqBigQuery do
 
     query_params =
       for value <- params do
-        {^value, type} = encode_value(value)
+        {value, type} = encode_value(value)
         %{parameterType: %{type: type}, parameterValue: %{value: value}}
       end
 
@@ -197,7 +197,7 @@ defmodule ReqBigQuery do
   defp decode_value("false", %{"type" => "BOOLEAN"}), do: false
   defp decode_value(value, _), do: value
 
-  defp encode_value(value) when is_boolean(value), do: {value, "BOOLEAN"}
+  defp encode_value(value) when is_boolean(value), do: {value, "BOOL"}
   defp encode_value(value) when is_float(value), do: {value, "FLOAT"}
   defp encode_value(value) when is_integer(value), do: {value, "INTEGER"}
   defp encode_value(value), do: {value, "STRING"}

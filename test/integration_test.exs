@@ -158,4 +158,25 @@ defmodule IntegrationTest do
 
     assert result.rows == [["fruit of the apple tree"]]
   end
+
+  test "encodes and decodes types received from Google BigQuery's response", %{
+    test: goth
+  } do
+    project_id = System.fetch_env!("PROJECT_ID")
+
+    credentials =
+      System.get_env("GOOGLE_APPLICATION_CREDENTIALS", "credentials.json")
+      |> File.read!()
+      |> Jason.decode!()
+
+    source = {:service_account, credentials, []}
+    start_supervised!({Goth, name: goth, source: source, http_client: &Req.request/1})
+
+    req = Req.new() |> ReqBigQuery.attach(project_id: project_id, goth: goth)
+
+    assert Req.post!(req, bigquery: {"SELECT ?", ["req"]}).body.rows == [["req"]]
+    assert Req.post!(req, bigquery: {"SELECT ?", [1]}).body.rows == [[1]]
+    assert Req.post!(req, bigquery: {"SELECT ?", [1.1]}).body.rows == [[1.1]]
+    assert Req.post!(req, bigquery: {"SELECT ?", [true]}).body.rows == [[true]]
+  end
 end
