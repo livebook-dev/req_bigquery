@@ -174,9 +174,28 @@ defmodule IntegrationTest do
 
     req = Req.new() |> ReqBigQuery.attach(project_id: project_id, goth: goth)
 
+    date = Date.utc_today()
+    datetime = DateTime.utc_now()
+    time = Time.utc_now()
+    timestamp = NaiveDateTime.utc_now()
+
     assert Req.post!(req, bigquery: {"SELECT ?", ["req"]}).body.rows == [["req"]]
     assert Req.post!(req, bigquery: {"SELECT ?", [1]}).body.rows == [[1]]
     assert Req.post!(req, bigquery: {"SELECT ?", [1.1]}).body.rows == [[1.1]]
     assert Req.post!(req, bigquery: {"SELECT ?", [true]}).body.rows == [[true]]
+    assert Req.post!(req, bigquery: {"SELECT ?", [date]}).body.rows == [[date]]
+    assert Req.post!(req, bigquery: {"SELECT ?", [time]}).body.rows == [[time]]
+    assert Req.post!(req, bigquery: "SELECT STRUCT(1 AS id)").body.rows == [[%{"id" => 1}]]
+
+    assert Req.post!(req, bigquery: "SELECT STRUCT(1 AS id, [10,20] AS coordinates)").body.rows ==
+             [[%{"coordinates" => [10, 20], "id" => 1}]]
+
+    assert Req.post!(req, bigquery: {"SELECT ?", [datetime]}).body.rows == [
+             [DateTime.truncate(datetime, :second)]
+           ]
+
+    assert Req.post!(req, bigquery: {"SELECT ?", [timestamp]}).body.rows == [
+             [NaiveDateTime.truncate(timestamp, :second)]
+           ]
   end
 end

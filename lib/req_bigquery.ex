@@ -191,12 +191,73 @@ defmodule ReqBigQuery do
     Enum.map(fields, & &1["name"])
   end
 
+  defp prepare_json_value(values = [_ | _], fields) do
+    Enum.map(values, &prepare_json_value(&1, fields))
+  end
+
+  defp prepare_json_value(%{"f" => columns}, fields) do
+    columns
+    |> Enum.with_index()
+    |> Enum.reduce(%{}, fn {%{"v" => value}, index}, acc ->
+      field = Enum.at(fields, index)
+      decoded_value = decode_value(value, field)
+
+      Map.put_new(acc, field["name"], decoded_value)
+    end)
+  end
+
+  @numeric_types ~w(INTEGER NUMERIC BIGNUMERIC)
+
   defp decode_value(nil, _), do: nil
+  defp decode_value(%{"v" => value}, field), do: decode_value(value, field)
+
+  defp decode_value(values, %{"mode" => "REPEATED"} = field) do
+    Enum.map(values, &decode_value(&1, Map.delete(field, "mode")))
+  end
+
   defp decode_value(value, %{"type" => "FLOAT"}), do: String.to_float(value)
-  defp decode_value(value, %{"type" => "INTEGER"}), do: String.to_integer(value)
+
+  defp decode_value(value, %{"type" => type}) when type in @numeric_types,
+    do: String.to_integer(value)
+
   defp decode_value("true", %{"type" => "BOOLEAN"}), do: true
   defp decode_value("false", %{"type" => "BOOLEAN"}), do: false
+
+  defp decode_value(value, %{"fields" => fields, "type" => "RECORD"}) do
+    prepare_json_value(value, fields)
+  end
+
+  defp decode_value(value, %{"type" => "DATE"}), do: Date.from_iso8601!(value)
+
+  defp decode_value(value, %{"type" => "DATETIME"}),
+    do: DateTime.from_iso8601(value <> "Z") |> elem(1)
+
+  defp decode_value(value, %{"type" => "TIME"}), do: Time.from_iso8601!(value)
+
+  @epoch_seconds :calendar.datetime_to_gregorian_seconds({{1970, 1, 1}, {0, 0, 0}})
+
+  defp decode_value(value, %{"type" => "TIMESTAMP"}) do
+    unix_time = String.to_float(value) |> floor()
+
+    NaiveDateTime.from_gregorian_seconds(unix_time + @epoch_seconds)
+  end
+
   defp decode_value(value, _), do: value
+
+  defp encode_value(%DateTime{} = datetime) do
+    string =
+      datetime
+      |> DateTime.truncate(:second)
+      |> to_string()
+
+    value = String.slice(string, 0..(String.length(string) - 2))
+
+    {value, "DATETIME"}
+  end
+
+  defp encode_value(%Date{} = date), do: {to_string(date), "DATE"}
+  defp encode_value(%Time{} = time), do: {to_string(time), "TIME"}
+  defp encode_value(%NaiveDateTime{} = timestamp), do: {to_string(timestamp), "TIMESTAMP"}
 
   defp encode_value(value) when is_boolean(value), do: {value, "BOOL"}
   defp encode_value(value) when is_float(value), do: {value, "FLOAT"}
