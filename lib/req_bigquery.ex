@@ -196,14 +196,11 @@ defmodule ReqBigQuery do
   end
 
   defp prepare_json_value(%{"f" => columns}, fields) do
-    columns
-    |> Enum.with_index()
-    |> Enum.reduce(%{}, fn {%{"v" => value}, index}, acc ->
+    for {%{"v" => value}, index} <- Enum.with_index(columns), into: %{} do
       field = Enum.at(fields, index)
-      decoded_value = decode_value(value, field)
 
-      Map.put_new(acc, field["name"], decoded_value)
-    end)
+      {field["name"], decode_value(value, field)}
+    end
   end
 
   @numeric_types ~w(INTEGER NUMERIC BIGNUMERIC)
