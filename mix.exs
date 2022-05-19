@@ -40,7 +40,6 @@ defmodule ReqBigQuery.MixProject do
     [
       {:req, github: "wojtekmach/req"},
       {:goth, github: "peburrows/goth"},
-      {:plug, "~> 1.13", only: :test},
       {:table, "~> 0.1.1", optional: true}
     ]
   end

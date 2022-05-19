@@ -1,37 +1,30 @@
 defmodule ReqBigQueryTest do
   use ExUnit.Case, async: true
-  use Plug.Test
 
   test "executes a query string", ctx do
-    fake_goth = fn conn ->
+    fake_goth = fn request ->
       data = %{access_token: "dummy", expires_in: 3599, token_type: "Bearer"}
-
-      conn
-      |> put_resp_content_type("application/json")
-      |> send_resp(200, Jason.encode_to_iodata!(data))
+      {request, Req.Response.json(data)}
     end
 
     start_supervised!(
       {Goth,
        name: ctx.test,
        source: {:service_account, goth_credentials(), []},
-       http_client: {&Req.request/1, plug: fake_goth}}
+       http_client: {&Req.request/1, adapter: fake_goth}}
     )
 
-    fake_bigquery = fn conn ->
-      assert {:ok, body, conn} = read_body(conn)
-
-      assert Jason.decode!(body) == %{
+    fake_bigquery = fn request ->
+      assert Jason.decode!(request.body) == %{
                "defaultDataset" => %{"datasetId" => "my_awesome_dataset"},
                "query" => "select * from iris"
              }
 
-      assert request_url(conn) ==
+      assert URI.to_string(request.url) ==
                "https://bigquery.googleapis.com/bigquery/v2/projects/my_awesome_project_id/queries"
 
-      assert get_req_header(conn, "content-type") == ["application/json"]
-      assert get_req_header(conn, "authorization") == ["Bearer dummy"]
-      assert conn.method == "POST"
+      assert Req.Request.get_header(request, "content-type") == ["application/json"]
+      assert Req.Request.get_header(request, "authorization") == ["Bearer dummy"]
 
       data = %{
         jobReference: %{jobId: "job_KuHEcplA2ICv8pSqb0QeOVNNpDaX"},
@@ -49,9 +42,7 @@ defmodule ReqBigQueryTest do
         totalRows: "2"
       }
 
-      conn
-      |> put_resp_content_type("application/json")
-      |> send_resp(200, Jason.encode_to_iodata!(data))
+      {request, Req.Response.json(data)}
     end
 
     opts = [
@@ -61,7 +52,7 @@ defmodule ReqBigQueryTest do
     ]
 
     assert response =
-             Req.new(plug: fake_bigquery)
+             Req.new(adapter: fake_bigquery)
              |> ReqBigQuery.attach(opts)
              |> Req.post!(bigquery: "select * from iris")
 
@@ -76,25 +67,20 @@ defmodule ReqBigQueryTest do
   end
 
   test "executes a parameterized query", ctx do
-    fake_goth = fn conn ->
+    fake_goth = fn request ->
       data = %{access_token: "dummy", expires_in: 3599, token_type: "Bearer"}
-
-      conn
-      |> put_resp_content_type("application/json")
-      |> send_resp(200, Jason.encode_to_iodata!(data))
+      {request, Req.Response.json(data)}
     end
 
     start_supervised!(
       {Goth,
        name: ctx.test,
        source: {:service_account, goth_credentials(), []},
-       http_client: {&Req.request/1, plug: fake_goth}}
+       http_client: {&Req.request/1, adapter: fake_goth}}
     )
 
-    fake_bigquery = fn conn ->
-      assert {:ok, body, conn} = read_body(conn)
-
-      assert Jason.decode!(body) == %{
+    fake_bigquery = fn request ->
+      assert Jason.decode!(request.body) == %{
                "defaultDataset" => %{"datasetId" => "my_awesome_dataset"},
                "query" => "select * from iris where sepal_width = ?",
                "parameterMode" => "POSITIONAL",
@@ -107,12 +93,11 @@ defmodule ReqBigQueryTest do
                "useLegacySql" => false
              }
 
-      assert request_url(conn) ==
+      assert URI.to_string(request.url) ==
                "https://bigquery.googleapis.com/bigquery/v2/projects/my_awesome_project_id/queries"
 
-      assert get_req_header(conn, "content-type") == ["application/json"]
-      assert get_req_header(conn, "authorization") == ["Bearer dummy"]
-      assert conn.method == "POST"
+      assert Req.Request.get_header(request, "content-type") == ["application/json"]
+      assert Req.Request.get_header(request, "authorization") == ["Bearer dummy"]
 
       data = %{
         jobReference: %{jobId: "job_KuHEcplA2ICv8pSqb0QeOVNNpDaX"},
@@ -130,9 +115,7 @@ defmodule ReqBigQueryTest do
         totalRows: "2"
       }
 
-      conn
-      |> put_resp_content_type("application/json")
-      |> send_resp(200, Jason.encode_to_iodata!(data))
+      {request, Req.Response.json(data)}
     end
 
     opts = [
@@ -142,7 +125,7 @@ defmodule ReqBigQueryTest do
     ]
 
     assert response =
-             Req.new(plug: fake_bigquery)
+             Req.new(adapter: fake_bigquery)
              |> ReqBigQuery.attach(opts)
              |> Req.post!(bigquery: {"select * from iris where sepal_width = ?", [10.4]})
 
