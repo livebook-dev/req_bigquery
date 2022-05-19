@@ -40,14 +40,14 @@ defmodule ReqBigQuery do
       iex> source = {:service_account, credentials, []}
       iex> {:ok, _} = Goth.start_link(name: MyGoth, source: source, http_client: &Req.request/1)
       iex> project_id = System.fetch_env!("PROJECT_ID")
-      iex> query = """
+      iex> query = \"""
       ...> SELECT title, SUM(views) AS views
       ...>   FROM `bigquery-public-data.wikipedia.table_bands`
       ...>  WHERE EXTRACT(YEAR FROM datehour) <= 2021
       ...>  GROUP BY title
       ...>  ORDER BY views DESC
       ...>  LIMIT 10
-      ...> """
+      ...> \"""
       iex> req = Req.new() |> ReqBigQuery.attach(goth: MyGoth, project_id: project_id)
       iex> Req.post!(req, bigquery: query).body
       %ReqBigQuery.Result{
@@ -74,14 +74,14 @@ defmodule ReqBigQuery do
       iex> source = {:service_account, credentials, []}
       iex> {:ok, _} = Goth.start_link(name: MyGoth, source: source, http_client: &Req.request/1)
       iex> project_id = System.fetch_env!("PROJECT_ID")
-      iex> query = """
+      iex> query = \"""
       ...> SELECT EXTRACT(YEAR FROM datehour) AS year, SUM(views) AS views
       ...>   FROM `bigquery-public-data.wikipedia.table_bands`
       ...>  WHERE EXTRACT(YEAR FROM datehour) <= 2021
       ...>    AND title = ?
       ...>  GROUP BY 1
       ...>  ORDER BY views DESC
-      ...> """
+      ...> \"""
       iex> req = Req.new() |> ReqBigQuery.attach(goth: MyGoth, project_id: project_id)
       iex> Req.post!(req, bigquery: {query, ["Linkin_Park"]}).body
       %ReqBigQuery.Result{
