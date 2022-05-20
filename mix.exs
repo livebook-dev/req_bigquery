@@ -38,6 +38,7 @@ defmodule ReqBigQuery.MixProject do
 
   defp deps do
     [
+      {:decimal, "~> 2.0"},
       {:req, github: "wojtekmach/req"},
       {:goth, github: "peburrows/goth"},
       {:table, "~> 0.1.1", optional: true}
