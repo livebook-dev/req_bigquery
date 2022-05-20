@@ -180,30 +180,47 @@ defmodule IntegrationTest do
     naive_dt = NaiveDateTime.utc_now()
     decimal = Decimal.new("20")
 
+    min_float = String.to_float("1.175494351E-38")
+    max_float = String.to_float("3.402823466E+38")
+
+    assert Req.post!(req, bigquery: {"SELECT ?", [Decimal.new("1.1")]}).body.rows == [
+             [Decimal.new("1.1")]
+           ]
+
+    assert Req.post!(req, bigquery: {"SELECT ?", [Decimal.new("1.10")]}).body.rows == [
+             [Decimal.new("1.1")]
+           ]
+
+    assert Req.post!(req, bigquery: {"SELECT ?", [Decimal.new("-1.1")]}).body.rows == [
+             [Decimal.new("-1.1")]
+           ]
+
     assert Req.post!(req, bigquery: {"SELECT ?", ["req"]}).body.rows == [["req"]]
     assert Req.post!(req, bigquery: {"SELECT ?", [1]}).body.rows == [[1]]
     assert Req.post!(req, bigquery: {"SELECT ?", [1.1]}).body.rows == [[1.1]]
+    assert Req.post!(req, bigquery: {"SELECT ?", [-1.1]}).body.rows == [[-1.1]]
     assert Req.post!(req, bigquery: {"SELECT ?", [true]}).body.rows == [[true]]
+    assert Req.post!(req, bigquery: {"SELECT ?", [min_float]}).body.rows == [[min_float]]
+    assert Req.post!(req, bigquery: {"SELECT ?", [max_float]}).body.rows == [[max_float]]
     assert Req.post!(req, bigquery: {"SELECT ?", [date]}).body.rows == [[date]]
     assert Req.post!(req, bigquery: {"SELECT ?", [time]}).body.rows == [[time]]
     assert Req.post!(req, bigquery: {"SELECT ?", [naive_dt]}).body.rows == [[naive_dt]]
     assert Req.post!(req, bigquery: {"SELECT ?", [dt]}).body.rows == [[dt]]
-    assert Req.post!(req, bigquery: {"SELECT ?", [decimal]}).body.rows == [[decimal]]
     assert Req.post!(req, bigquery: "SELECT STRUCT(1 AS id)").body.rows == [[%{"id" => 1}]]
 
     assert Req.post!(req, bigquery: "SELECT STRUCT(1 AS id, [10,20] AS coordinates)").body.rows ==
              [[%{"coordinates" => [10, 20], "id" => 1}]]
 
-    assert Req.post!(req, bigquery: {"SELECT CAST('-inf' AS FLOAT64)", [decimal]}).body.rows == [
-             ["NaN"]
-           ]
+    assert_raise RuntimeError, fn ->
+      Req.post!(req, bigquery: {"SELECT CAST('-inf' AS FLOAT64)", [decimal]})
+    end
 
-    assert Req.post!(req, bigquery: {"SELECT CAST('+inf' AS FLOAT64)", [decimal]}).body.rows == [
-             ["NaN"]
-           ]
+    assert_raise RuntimeError, fn ->
+      Req.post!(req, bigquery: {"SELECT CAST('+inf' AS FLOAT64)", [decimal]})
+    end
 
-    assert Req.post!(req, bigquery: {"SELECT CAST('NaN' AS FLOAT64)", [decimal]}).body.rows == [
-             ["NaN"]
-           ]
+    assert_raise RuntimeError, fn ->
+      Req.post!(req, bigquery: {"SELECT CAST('NaN' AS FLOAT64)", [decimal]})
+    end
   end
 end

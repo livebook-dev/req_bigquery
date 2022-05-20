@@ -199,7 +199,7 @@ defmodule ReqBigQuery do
   @invalid_float_values ["-Infinity", "Infinity", "NaN"]
 
   defp decode_value(value, %{"type" => "FLOAT"}) when value in @invalid_float_values do
-    "NaN"
+    raise "float value #{value} is not supported"
   end
 
   defp decode_value(values, %{"mode" => "REPEATED"} = field) do
