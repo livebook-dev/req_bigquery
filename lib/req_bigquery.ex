@@ -191,19 +191,26 @@ defmodule ReqBigQuery do
     Enum.map(fields, & &1["name"])
   end
 
-  @numeric_types ~w(INTEGER NUMERIC BIGNUMERIC)
+  @decimal_types ~w(NUMERIC BIGNUMERIC)
 
   defp decode_value(nil, _), do: nil
   defp decode_value(%{"v" => value}, field), do: decode_value(value, field)
+
+  @invalid_float_values ["-Infinity", "Infinity", "NaN"]
+
+  defp decode_value(value, %{"type" => "FLOAT"}) when value in @invalid_float_values do
+    "NaN"
+  end
 
   defp decode_value(values, %{"mode" => "REPEATED"} = field) do
     Enum.map(values, &decode_value(&1, Map.delete(field, "mode")))
   end
 
   defp decode_value(value, %{"type" => "FLOAT"}), do: String.to_float(value)
+  defp decode_value(value, %{"type" => "INTEGER"}), do: String.to_integer(value)
 
-  defp decode_value(value, %{"type" => type}) when type in @numeric_types,
-    do: String.to_integer(value)
+  defp decode_value(value, %{"type" => type}) when type in @decimal_types,
+    do: Decimal.new(value)
 
   defp decode_value("true", %{"type" => "BOOLEAN"}), do: true
   defp decode_value("false", %{"type" => "BOOLEAN"}), do: false
@@ -238,7 +245,7 @@ defmodule ReqBigQuery do
     end
   end
 
-  defp encode_value(%DateTime{} = datetime) do
+  defp encode_value(%DateTime{time_zone: "Etc/UTC"} = datetime) do
     naive_datetime = DateTime.to_naive(datetime)
     {to_string(naive_datetime), "TIMESTAMP"}
   end
@@ -246,6 +253,7 @@ defmodule ReqBigQuery do
   defp encode_value(%Date{} = date), do: {to_string(date), "DATE"}
   defp encode_value(%Time{} = time), do: {to_string(time), "TIME"}
   defp encode_value(%NaiveDateTime{} = timestamp), do: {to_string(timestamp), "DATETIME"}
+  defp encode_value(%Decimal{} = decimal), do: {to_string(decimal), "BIGNUMERIC"}
 
   defp encode_value(value) when is_boolean(value), do: {value, "BOOL"}
   defp encode_value(value) when is_float(value), do: {value, "FLOAT"}
