@@ -174,9 +174,64 @@ defmodule IntegrationTest do
 
     req = Req.new() |> ReqBigQuery.attach(project_id: project_id, goth: goth)
 
-    assert Req.post!(req, bigquery: {"SELECT ?", ["req"]}).body.rows == [["req"]]
-    assert Req.post!(req, bigquery: {"SELECT ?", [1]}).body.rows == [[1]]
-    assert Req.post!(req, bigquery: {"SELECT ?", [1.1]}).body.rows == [[1.1]]
-    assert Req.post!(req, bigquery: {"SELECT ?", [true]}).body.rows == [[true]]
+    value = Decimal.new("1.1")
+    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows == [[value]]
+
+    decimal = Decimal.new("1.10")
+    assert Req.post!(req, bigquery: {"SELECT ?", [decimal]}).body.rows == [[value]]
+
+    value = Decimal.new("-1.1")
+    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows == [[value]]
+
+    value = "req"
+    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows == [[value]]
+
+    value = 1
+    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows == [[value]]
+
+    value = 1.1
+    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows == [[value]]
+
+    value = -1.1
+    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows == [[value]]
+
+    value = true
+    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows == [[value]]
+
+    value = String.to_float("1.175494351E-38")
+    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows == [[value]]
+
+    value = String.to_float("3.402823466E+38")
+    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows == [[value]]
+
+    value = Date.utc_today()
+    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows == [[value]]
+
+    value = Time.utc_now()
+    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows == [[value]]
+
+    value = NaiveDateTime.utc_now()
+    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows == [[value]]
+
+    value = DateTime.utc_now()
+    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows == [[value]]
+
+    value = %{"id" => 1}
+    assert Req.post!(req, bigquery: "SELECT STRUCT(1 AS id)").body.rows == [[value]]
+
+    value = %{"ids" => [10, 20]}
+    assert Req.post!(req, bigquery: "SELECT STRUCT([10,20] AS ids)").body.rows == [[value]]
+
+    assert_raise RuntimeError, "float value \"-Infinity\" is not supported", fn ->
+      Req.post!(req, bigquery: "SELECT CAST('-inf' AS FLOAT64)")
+    end
+
+    assert_raise RuntimeError, "float value \"Infinity\" is not supported", fn ->
+      Req.post!(req, bigquery: "SELECT CAST('+inf' AS FLOAT64)")
+    end
+
+    assert_raise RuntimeError, "float value \"NaN\" is not supported", fn ->
+      Req.post!(req, bigquery: "SELECT CAST('NaN' AS FLOAT64)")
+    end
   end
 end

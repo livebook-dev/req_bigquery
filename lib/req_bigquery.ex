@@ -159,8 +159,8 @@ defmodule ReqBigQuery do
     %Result{
       job_id: job_id,
       num_rows: String.to_integer(num_rows),
-      rows: prepare_rows(rows, fields),
-      columns: prepare_columns(fields)
+      rows: decode_rows(rows, fields),
+      columns: decode_columns(fields)
     }
   end
 
@@ -174,11 +174,11 @@ defmodule ReqBigQuery do
       job_id: job_id,
       num_rows: String.to_integer(num_rows),
       rows: [],
-      columns: prepare_columns(fields)
+      columns: decode_columns(fields)
     }
   end
 
-  defp prepare_rows(rows, fields) do
+  defp decode_rows(rows, fields) do
     Enum.map(rows, fn %{"f" => columns} ->
       Enum.with_index(columns, fn %{"v" => value}, index ->
         field = Enum.at(fields, index)
@@ -187,16 +187,73 @@ defmodule ReqBigQuery do
     end)
   end
 
-  defp prepare_columns(fields) do
+  defp decode_columns(fields) do
     Enum.map(fields, & &1["name"])
   end
 
+  @decimal_types ~w(NUMERIC BIGNUMERIC)
+
   defp decode_value(nil, _), do: nil
+  defp decode_value(%{"v" => value}, field), do: decode_value(value, field)
+
+  @invalid_float_values ["-Infinity", "Infinity", "NaN"]
+
+  defp decode_value(value, %{"type" => "FLOAT"}) when value in @invalid_float_values do
+    raise "float value #{inspect(value)} is not supported"
+  end
+
+  defp decode_value(values, %{"mode" => "REPEATED"} = field) do
+    Enum.map(values, &decode_value(&1, Map.delete(field, "mode")))
+  end
+
   defp decode_value(value, %{"type" => "FLOAT"}), do: String.to_float(value)
   defp decode_value(value, %{"type" => "INTEGER"}), do: String.to_integer(value)
+
+  defp decode_value(value, %{"type" => type}) when type in @decimal_types,
+    do: Decimal.new(value)
+
   defp decode_value("true", %{"type" => "BOOLEAN"}), do: true
   defp decode_value("false", %{"type" => "BOOLEAN"}), do: false
+
+  defp decode_value(value, %{"fields" => fields, "type" => "RECORD"}) do
+    decode_record(value, fields)
+  end
+
+  defp decode_value(value, %{"type" => "DATE"}), do: Date.from_iso8601!(value)
+
+  defp decode_value(value, %{"type" => "DATETIME"}),
+    do: NaiveDateTime.from_iso8601!(value)
+
+  defp decode_value(value, %{"type" => "TIME"}), do: Time.from_iso8601!(value)
+
+  defp decode_value(value, %{"type" => "TIMESTAMP"}) do
+    float = String.to_float(value)
+    DateTime.from_unix!(round(float * 1_000_000), :microsecond)
+  end
+
   defp decode_value(value, _), do: value
+
+  defp decode_record(values, fields) when is_list(values) do
+    Enum.map(values, &decode_record(&1, fields))
+  end
+
+  defp decode_record(%{"f" => columns}, fields) do
+    for {%{"v" => value}, index} <- Enum.with_index(columns), into: %{} do
+      field = Enum.at(fields, index)
+
+      {field["name"], decode_value(value, field)}
+    end
+  end
+
+  defp encode_value(%DateTime{time_zone: "Etc/UTC"} = datetime) do
+    naive_datetime = DateTime.to_naive(datetime)
+    {to_string(naive_datetime), "TIMESTAMP"}
+  end
+
+  defp encode_value(%Date{} = date), do: {to_string(date), "DATE"}
+  defp encode_value(%Time{} = time), do: {to_string(time), "TIME"}
+  defp encode_value(%NaiveDateTime{} = timestamp), do: {to_string(timestamp), "DATETIME"}
+  defp encode_value(%Decimal{} = decimal), do: {to_string(decimal), "BIGNUMERIC"}
 
   defp encode_value(value) when is_boolean(value), do: {value, "BOOL"}
   defp encode_value(value) when is_float(value), do: {value, "FLOAT"}
