@@ -178,22 +178,18 @@ defmodule IntegrationTest do
     dt = DateTime.utc_now()
     time = Time.utc_now()
     naive_dt = NaiveDateTime.utc_now()
-    decimal = Decimal.new("20")
 
     min_float = String.to_float("1.175494351E-38")
     max_float = String.to_float("3.402823466E+38")
 
-    assert Req.post!(req, bigquery: {"SELECT ?", [Decimal.new("1.1")]}).body.rows == [
-             [Decimal.new("1.1")]
-           ]
+    value1 = Decimal.new("1.1")
+    assert Req.post!(req, bigquery: {"SELECT ?", [value1]}).body.rows == [[value1]]
 
-    assert Req.post!(req, bigquery: {"SELECT ?", [Decimal.new("1.10")]}).body.rows == [
-             [Decimal.new("1.1")]
-           ]
+    value2 = Decimal.new("1.10")
+    assert Req.post!(req, bigquery: {"SELECT ?", [value2]}).body.rows == [[value1]]
 
-    assert Req.post!(req, bigquery: {"SELECT ?", [Decimal.new("-1.1")]}).body.rows == [
-             [Decimal.new("-1.1")]
-           ]
+    value3 = Decimal.new("-1.1")
+    assert Req.post!(req, bigquery: {"SELECT ?", [value3]}).body.rows == [[value3]]
 
     assert Req.post!(req, bigquery: {"SELECT ?", ["req"]}).body.rows == [["req"]]
     assert Req.post!(req, bigquery: {"SELECT ?", [1]}).body.rows == [[1]]
@@ -211,16 +207,16 @@ defmodule IntegrationTest do
     assert Req.post!(req, bigquery: "SELECT STRUCT(1 AS id, [10,20] AS coordinates)").body.rows ==
              [[%{"coordinates" => [10, 20], "id" => 1}]]
 
-    assert_raise RuntimeError, fn ->
-      Req.post!(req, bigquery: {"SELECT CAST('-inf' AS FLOAT64)", [decimal]})
+    assert_raise RuntimeError, "float value \"-Infinity\" is not supported", fn ->
+      Req.post!(req, bigquery: "SELECT CAST('-inf' AS FLOAT64)")
     end
 
-    assert_raise RuntimeError, fn ->
-      Req.post!(req, bigquery: {"SELECT CAST('+inf' AS FLOAT64)", [decimal]})
+    assert_raise RuntimeError, "float value \"Infinity\" is not supported", fn ->
+      Req.post!(req, bigquery: "SELECT CAST('+inf' AS FLOAT64)")
     end
 
-    assert_raise RuntimeError, fn ->
-      Req.post!(req, bigquery: {"SELECT CAST('NaN' AS FLOAT64)", [decimal]})
+    assert_raise RuntimeError, "float value \"NaN\" is not supported", fn ->
+      Req.post!(req, bigquery: "SELECT CAST('NaN' AS FLOAT64)")
     end
   end
 end
