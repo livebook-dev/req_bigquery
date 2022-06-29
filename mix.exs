@@ -40,7 +40,7 @@ defmodule ReqBigQuery.MixProject do
     [
       {:decimal, "~> 2.0"},
       {:req, "~> 0.3.0"},
-      {:goth, github: "peburrows/goth"},
+      {:goth, "~> 1.3.0"},
       {:table, "~> 0.1.1", optional: true}
     ]
   end
