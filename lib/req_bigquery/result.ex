@@ -24,7 +24,7 @@ end
 if Code.ensure_loaded?(Table.Reader) do
   defimpl Table.Reader, for: ReqBigQuery.Result do
     def init(result) do
-      {:rows, %{columns: result.columns}, result.rows}
+      {:rows, %{columns: result.columns, count: result.num_rows}, result.rows}
     end
   end
 end
