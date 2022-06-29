@@ -1,13 +1,15 @@
 defmodule ReqBigQuery.MixProject do
   use Mix.Project
 
-  @version "0.1.0-dev"
-  @source_url "https://github.com/livebook-dev/req_bigquery"
+  @version "0.1.0"
+  @description "Req plugin for Google BigQuery"
 
   def project do
     [
       app: :req_bigquery,
       version: @version,
+      description: @description,
+      name: "ReqBigQuery",
       elixir: "~> 1.12",
       preferred_cli_env: [
         "test.all": :test,
@@ -17,7 +19,8 @@ defmodule ReqBigQuery.MixProject do
       start_permanent: Mix.env() == :prod,
       docs: docs(),
       deps: deps(),
-      aliases: aliases()
+      aliases: aliases(),
+      package: package()
     ]
   end
 
@@ -30,7 +33,7 @@ defmodule ReqBigQuery.MixProject do
   defp docs do
     [
       main: "readme",
-      source_url: @source_url,
+      source_url: "https://github.com/livebook-dev/req_bigquery",
       source_ref: "v#{@version}",
       extras: ["README.md"]
     ]
@@ -41,11 +44,21 @@ defmodule ReqBigQuery.MixProject do
       {:decimal, "~> 2.0"},
       {:req, "~> 0.3.0"},
       {:goth, "~> 1.3.0"},
-      {:table, "~> 0.1.1", optional: true}
+      {:table, "~> 0.1.1", optional: true},
+      {:ex_doc, ">= 0.0.0", only: :docs, runtime: false}
     ]
   end
 
   def aliases do
     ["test.all": ["test --include integration"]]
+  end
+
+  defp package do
+    [
+      licenses: ["Apache-2.0"],
+      links: %{
+        "GitHub" => "https://github.com/livebook-dev/req_bigquery"
+      }
+    ]
   end
 end

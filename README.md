@@ -1,5 +1,7 @@
 # ReqBigQuery
 
+[![Hex pm](http://img.shields.io/hexpm/v/req_bigquery.svg?style=flat)](https://hex.pm/packages/req_bigquery)
+
 [Req](https://github.com/wojtekmach/req) plugin for [Google BigQuery](https://cloud.google.com/bigquery/docs/reference/rest).
 
 ReqBigQuery makes it easy to make BigQuery queries. It uses [Goth](https://github.com/peburrows/goth)
@@ -10,9 +12,9 @@ The struct implements the `Table.Reader` protocol and thus can be efficiently tr
 
 ```elixir
 Mix.install([
-  {:goth, github: "peburrows/goth"},
-  {:req, github: "wojtekmach/req"},
-  {:req_bigquery, github: "livebook-dev/req_bigquery"}
+  {:goth, "~> 1.3.0"},
+  {:req, "~> 0.3.0"},
+  {:req_bigquery, "~> 0.1.0"}
 ])
 
 # We use Goth to authenticate to Google Cloud API.
