@@ -10,8 +10,9 @@ defmodule ReqBigQuery do
   alias Req.Request
   alias ReqBigQuery.Result
 
-  @allowed_options ~w(goth default_dataset_id project_id bigquery)a
+  @allowed_options ~w(goth default_dataset_id project_id bigquery max_results)a
   @base_url "https://bigquery.googleapis.com/bigquery/v2"
+  @max_results 10_000
 
   @doc """
   Attaches to Req request.
@@ -29,6 +30,10 @@ defmodule ReqBigQuery do
     * `:default_dataset_id` - Optional. If set, the dataset to assume for any unqualified table
       names in the query. If not set, all table names in the query string must be qualified in the
       format 'datasetId.tableId'.
+
+    * `:max_results` - Optional. Number of rows to be returned by BigQuery in each request (paging).
+      The rows Stream can make multiple requests if `num_rows` returned is grather than `:max_results`.
+      default: 10000.
 
   If you want to set any of these options when attaching the plugin, pass them as the second argument.
 
@@ -49,12 +54,16 @@ defmodule ReqBigQuery do
       ...>  LIMIT 10
       ...> \"""
       iex> req = Req.new() |> ReqBigQuery.attach(goth: MyGoth, project_id: project_id)
-      iex> Req.post!(req, bigquery: query).body
+      iex> res = Req.post!(req, bigquery: query).body
+      iex> res
       %ReqBigQuery.Result{
         columns: ["title", "views"],
         job_id: "job_JDDZKquJWkY7x0LlDcmZ4nMQqshb",
         num_rows: 10,
-        rows: [
+        rows: %Stream{}
+      }
+      iex> res.rows |> Enum.to_list()
+      [
           ["The_Beatles", 13758950],
           ["Queen_(band)", 12019563],
           ["Pink_Floyd", 9522503],
@@ -65,8 +74,7 @@ defmodule ReqBigQuery do
           ["Red_Hot_Chili_Peppers", 7302904],
           ["Fleetwood_Mac", 7199563],
           ["Twenty_One_Pilots", 6970692]
-        ]
-      }
+      ]
 
   With parameterized query:
 
@@ -83,29 +91,39 @@ defmodule ReqBigQuery do
       ...>  ORDER BY views DESC
       ...> \"""
       iex> req = Req.new() |> ReqBigQuery.attach(goth: MyGoth, project_id: project_id)
-      iex> Req.post!(req, bigquery: {query, ["Linkin_Park"]}).body
+      iex> res = Req.post!(req, bigquery: {query, ["Linkin_Park"]}).body
       %ReqBigQuery.Result{
         columns: ["year", "views"],
         job_id: "job_GXiJvALNsTAoAOJ39Eg3Mw94XMUQ",
         num_rows: 7,
-        rows: [[2017, 2895889], [2016, 1173359], [2018, 1133770], [2020, 906538], [2015, 860899], [2019, 790747], [2021, 481600]]
+        rows: %Stream{}
       }
+      iex> res.rows |> Enum.to_list()
+      [[2017, 2895889], [2016, 1173359], [2018, 1133770], [2020, 906538], [2015, 860899], [2019, 790747], [2021, 481600]]
 
   """
   @spec attach(Request.t(), keyword()) :: Request.t()
   def attach(%Request{} = request, options \\ []) do
+    checked_options =
+      options
+      |> Keyword.put_new(:base_url, @base_url)
+      |> Keyword.put_new(:max_results, @max_results)
+
     request
     |> Request.prepend_request_steps(bigquery_run: &run/1)
     |> Request.register_options(@allowed_options)
-    |> Request.merge_options(options)
+    |> Request.merge_options(checked_options)
   end
 
   defp run(%Request{options: options} = request) do
     if query = options[:bigquery] do
-      base_url = options[:base_url] || @base_url
+      base_url = options[:base_url]
       token = Goth.fetch!(options.goth).token
       uri = URI.parse("#{base_url}/projects/#{options.project_id}/queries")
-      json = build_request_body(query, options[:default_dataset_id])
+
+      json =
+        build_request_body(query, options[:default_dataset_id])
+        |> Map.put(:maxResults, options.max_results)
 
       %{request | url: uri}
       |> Request.merge_options(auth: {:bearer, token}, json: json)
@@ -144,32 +162,38 @@ defmodule ReqBigQuery do
   end
 
   defp decode({request, %{status: 200} = response}) do
-    {request, update_in(response.body, &decode_body/1)}
+    {request, update_in(response.body, &decode_body(&1, request.options))}
   end
 
   defp decode(any), do: any
 
-  defp decode_body(%{
-         "jobReference" => %{"jobId" => job_id},
-         "kind" => "bigquery#queryResponse",
-         "rows" => rows,
-         "schema" => %{"fields" => fields},
-         "totalRows" => num_rows
-       }) do
+  defp decode_body(
+         %{
+           "jobReference" => %{"jobId" => job_id},
+           "kind" => "bigquery#queryResponse",
+           "rows" => _rows,
+           "schema" => %{"fields" => fields},
+           "totalRows" => num_rows
+         } = initial_response,
+         request_options
+       ) do
     %Result{
       job_id: job_id,
       num_rows: String.to_integer(num_rows),
-      rows: decode_rows(rows, fields),
+      rows: rows_stream(initial_response, request_options) |> decode_rows(fields),
       columns: decode_columns(fields)
     }
   end
 
-  defp decode_body(%{
-         "jobReference" => %{"jobId" => job_id},
-         "kind" => "bigquery#queryResponse",
-         "schema" => %{"fields" => fields},
-         "totalRows" => num_rows
-       }) do
+  defp decode_body(
+         %{
+           "jobReference" => %{"jobId" => job_id},
+           "kind" => "bigquery#queryResponse",
+           "schema" => %{"fields" => fields},
+           "totalRows" => num_rows
+         },
+         _request_options
+       ) do
     %Result{
       job_id: job_id,
       num_rows: String.to_integer(num_rows),
@@ -178,8 +202,43 @@ defmodule ReqBigQuery do
     }
   end
 
+  defp rows_stream(initial_response, request_options) do
+    Stream.resource(
+      fn -> {:initial, initial_response} end,
+      fn
+        {:initial, %{"rows" => rows} = initial_body} ->
+          {rows, initial_body}
+
+        %{
+          "pageToken" => page_token,
+          "jobReference" => %{"jobId" => job_id, "projectId" => project_id}
+        } ->
+          resp = page_request(request_options, project_id, job_id, page_token)
+          {resp.body["rows"], resp.body}
+
+        _end ->
+          # last iteration didn't have pageToken
+          {:halt, :ok}
+      end,
+      fn _ -> :ok end
+    )
+  end
+
+  defp page_request(options, project_id, job_id, page_token) do
+    uri =
+      URI.parse(
+        "#{@base_url}/projects/#{project_id}/queries/#{job_id}?maxResults=#{options.max_results}&pageToken=#{page_token}"
+      )
+
+    token = Goth.fetch!(options.goth).token
+
+    Req.new(url: uri)
+    |> Request.merge_options(auth: {:bearer, token})
+    |> Req.get!()
+  end
+
   defp decode_rows(rows, fields) do
-    Enum.map(rows, fn %{"f" => columns} ->
+    Stream.map(rows, fn %{"f" => columns} ->
       Enum.with_index(columns, fn %{"v" => value}, index ->
         field = Enum.at(fields, index)
         decode_value(value, field)

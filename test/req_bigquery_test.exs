@@ -17,7 +17,8 @@ defmodule ReqBigQueryTest do
     fake_bigquery = fn request ->
       assert Jason.decode!(request.body) == %{
                "defaultDataset" => %{"datasetId" => "my_awesome_dataset"},
-               "query" => "select * from iris"
+               "query" => "select * from iris",
+               "maxResults" => 10000
              }
 
       assert URI.to_string(request.url) ==
@@ -58,12 +59,14 @@ defmodule ReqBigQueryTest do
 
     assert response.status == 200
 
-    assert response.body == %ReqBigQuery.Result{
+    assert %ReqBigQuery.Result{
              columns: ["id", "name"],
              job_id: "job_KuHEcplA2ICv8pSqb0QeOVNNpDaX",
              num_rows: 2,
-             rows: [[1, "Ale"], [2, "Wojtek"]]
-           }
+             rows: %Stream{}
+           } = response.body
+
+    assert Enum.to_list(response.body.rows) == [[1, "Ale"], [2, "Wojtek"]]
   end
 
   test "executes a parameterized query", ctx do
@@ -90,7 +93,8 @@ defmodule ReqBigQueryTest do
                    "parameterValue" => %{"value" => 10.4}
                  }
                ],
-               "useLegacySql" => false
+               "useLegacySql" => false,
+               "maxResults" => 10000
              }
 
       assert URI.to_string(request.url) ==
@@ -131,12 +135,14 @@ defmodule ReqBigQueryTest do
 
     assert response.status == 200
 
-    assert response.body == %ReqBigQuery.Result{
+    assert %ReqBigQuery.Result{
              columns: ["id", "name"],
              job_id: "job_KuHEcplA2ICv8pSqb0QeOVNNpDaX",
              num_rows: 2,
-             rows: [[1, "Ale"], [2, "Wojtek"]]
-           }
+             rows: %Stream{}
+           } = response.body
+
+    assert Enum.to_list(response.body.rows) == [[1, "Ale"], [2, "Wojtek"]]
   end
 
   defp goth_credentials do
