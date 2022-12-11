@@ -49,7 +49,7 @@ defmodule IntegrationTest do
            ]
   end
 
-  test "If max_results (paging) < response num_rows, the stream requests new pages and brings all the rows",
+  test "requests new pages and brings all the rows when max_results (paging) < response num_rows",
        %{test: goth} do
     credentials =
       System.get_env("GOOGLE_APPLICATION_CREDENTIALS", "credentials.json")
