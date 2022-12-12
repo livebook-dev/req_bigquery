@@ -203,25 +203,21 @@ defmodule ReqBigQuery do
   end
 
   defp rows_stream(initial_response, request_options) do
-    Stream.resource(
-      fn -> {:initial, initial_response} end,
-      fn
-        {:initial, %{"rows" => rows} = initial_body} ->
-          {rows, initial_body}
+    Stream.unfold({:initial, initial_response}, fn
+      {:initial, %{"rows" => rows} = initial_body} ->
+        {rows, initial_body}
 
-        %{
-          "pageToken" => page_token,
-          "jobReference" => %{"jobId" => job_id, "projectId" => project_id}
-        } ->
-          resp = page_request(request_options, project_id, job_id, page_token)
-          {resp.body["rows"], resp.body}
+      %{
+        "pageToken" => page_token,
+        "jobReference" => %{"jobId" => job_id, "projectId" => project_id}
+      } ->
+        resp = page_request(request_options, project_id, job_id, page_token)
+        {resp.body["rows"], resp.body}
 
-        _end ->
-          # last iteration didn't have pageToken
-          {:halt, :ok}
-      end,
-      fn _ -> :ok end
-    )
+      _end ->
+        # last iteration didn't have pageToken
+        nil
+    end)
   end
 
   defp page_request(options, project_id, job_id, page_token) do
