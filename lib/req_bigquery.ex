@@ -218,6 +218,7 @@ defmodule ReqBigQuery do
         # last iteration didn't have pageToken
         nil
     end)
+    |> Stream.flat_map(& &1)
   end
 
   defp page_request(options, project_id, job_id, page_token) do
