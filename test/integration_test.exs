@@ -74,7 +74,7 @@ defmodule IntegrationTest do
 
     result = response.body
 
-    assert is_struct(result.rows, Stream)
+    assert %Stream{} = result.rows
 
     assert result.rows |> Enum.take(4) == [
              [~U[2015-05-01 01:00:00.000000Z], "Butter_08", 1],
@@ -148,9 +148,8 @@ defmodule IntegrationTest do
 
     assert result.columns == ["year", "views"]
     assert result.num_rows == 7
-    rows = result.rows |> Enum.to_list()
 
-    assert rows == [
+    assert Enum.to_list(result.rows) == [
              [2017, 2_895_889],
              [2016, 1_173_359],
              [2018, 1_133_770],
@@ -214,9 +213,7 @@ defmodule IntegrationTest do
 
     value = Decimal.new("1.1")
 
-    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows |> Enum.to_list() == [
-             [value]
-           ]
+    assert run_decoding_query(req, value) == [[value]]
 
     decimal = Decimal.new("1.10")
 

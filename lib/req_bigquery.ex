@@ -33,7 +33,7 @@ defmodule ReqBigQuery do
 
     * `:max_results` - Optional. Number of rows to be returned by BigQuery in each request (paging).
       The rows Stream can make multiple requests if `num_rows` returned is grather than `:max_results`.
-      default: 10000.
+      Defaults to 10000.
 
   If you want to set any of these options when attaching the plugin, pass them as the second argument.
 
@@ -62,7 +62,7 @@ defmodule ReqBigQuery do
         num_rows: 10,
         rows: %Stream{}
       }
-      iex> res.rows |> Enum.to_list()
+      iex> Enum.to_list(res.rows)
       [
           ["The_Beatles", 13758950],
           ["Queen_(band)", 12019563],
@@ -98,7 +98,7 @@ defmodule ReqBigQuery do
         num_rows: 7,
         rows: %Stream{}
       }
-      iex> res.rows |> Enum.to_list()
+      iex> Enum.to_list(res.rows)
       [[2017, 2895889], [2016, 1173359], [2018, 1133770], [2020, 906538], [2015, 860899], [2019, 790747], [2021, 481600]]
 
   """
@@ -122,7 +122,8 @@ defmodule ReqBigQuery do
       uri = URI.parse("#{base_url}/projects/#{options.project_id}/queries")
 
       json =
-        build_request_body(query, options[:default_dataset_id])
+        query
+        |> build_request_body(options[:default_dataset_id])
         |> Map.put(:maxResults, options.max_results)
 
       %{request | url: uri}
