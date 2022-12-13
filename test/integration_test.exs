@@ -253,7 +253,7 @@ defmodule IntegrationTest do
 
     value = Date.utc_today()
 
-    assert run_decoding_query(req, value) |> Enum.to_list() == [[value]]
+    assert run_decoding_query(req, value) == [[value]]
 
     value = Time.utc_now()
 
