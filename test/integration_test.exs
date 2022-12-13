@@ -76,7 +76,7 @@ defmodule IntegrationTest do
 
     assert %Stream{} = result.rows
 
-    assert result.rows |> Enum.take(4) == [
+    assert Enum.take(result.rows, 4) == [
              [~U[2015-05-01 01:00:00.000000Z], "Butter_08", 1],
              [~U[2015-05-01 01:00:00.000000Z], "The_Pipkins", 1],
              [~U[2015-05-01 01:00:00.000000Z], "Project_One", 1],
@@ -192,7 +192,7 @@ defmodule IntegrationTest do
     assert result.columns == ["en_description"]
     assert result.num_rows == 1
 
-    rows = result.rows |> Enum.to_list()
+    rows = Enum.to_list(result.rows)
     assert rows == [["fruit of the apple tree"]]
   end
 
@@ -217,103 +217,83 @@ defmodule IntegrationTest do
 
     decimal = Decimal.new("1.10")
 
-    assert Req.post!(req, bigquery: {"SELECT ?", [decimal]}).body.rows |> Enum.to_list() == [
-             [value]
-           ]
+    assert run_decoding_query(req, decimal) == [[value]]
 
     value = Decimal.new("-1.1")
 
-    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows |> Enum.to_list() == [
-             [value]
-           ]
+    assert run_decoding_query(req, value) == [[value]]
 
     value = "req"
 
-    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows |> Enum.to_list() == [
-             [value]
-           ]
+    assert run_decoding_query(req, value) == [[value]]
 
     value = 1
 
-    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows |> Enum.to_list() == [
-             [value]
-           ]
+    assert run_decoding_query(req, value) == [[value]]
 
     value = 1.1
 
-    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows |> Enum.to_list() == [
-             [value]
-           ]
+    assert run_decoding_query(req, value) == [[value]]
 
     value = -1.1
 
-    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows |> Enum.to_list() == [
-             [value]
-           ]
+    assert run_decoding_query(req, value) == [[value]]
 
     value = true
 
-    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows |> Enum.to_list() == [
-             [value]
-           ]
+    assert run_decoding_query(req, value) == [[value]]
 
     value = String.to_float("1.175494351E-38")
 
-    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows |> Enum.to_list() == [
-             [value]
-           ]
+    assert run_decoding_query(req, value) == [[value]]
 
     value = String.to_float("3.402823466E+38")
 
-    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows |> Enum.to_list() == [
-             [value]
-           ]
+    assert run_decoding_query(req, value) |> Enum.to_list() == [[value]]
 
     value = Date.utc_today()
 
-    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows |> Enum.to_list() == [
-             [value]
-           ]
+    assert run_decoding_query(req, value) |> Enum.to_list() == [[value]]
 
     value = Time.utc_now()
 
-    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows |> Enum.to_list() == [
-             [value]
-           ]
+    assert run_decoding_query(req, value) |> Enum.to_list() == [[value]]
 
     value = NaiveDateTime.utc_now()
 
-    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows |> Enum.to_list() == [
-             [value]
-           ]
+    assert run_decoding_query(req, value) |> Enum.to_list() == [[value]]
 
     value = DateTime.utc_now()
 
-    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows |> Enum.to_list() == [
-             [value]
-           ]
+    assert run_decoding_query(req, value) |> Enum.to_list() == [[value]]
 
     value = %{"id" => 1}
 
-    assert Req.post!(req, bigquery: "SELECT STRUCT(1 AS id)").body.rows |> Enum.to_list() == [
-             [value]
-           ]
+    assert run_custom_query(req, "SELECT STRUCT(1 AS id)") == [[value]]
 
     value = %{"ids" => [10, 20]}
 
-    assert Req.post!(req, bigquery: "SELECT STRUCT([10,20] AS ids)").body.rows |> Enum.to_list() ==
-             [[value]]
+    assert run_custom_query(req, "SELECT STRUCT([10,20] AS ids)") == [[value]]
 
     assert_raise RuntimeError, "float value \"-Infinity\" is not supported", fn ->
-      Req.post!(req, bigquery: "SELECT CAST('-inf' AS FLOAT64)").body.rows |> Stream.run()
+      run_custom_query(req, "SELECT CAST('-inf' AS FLOAT64)")
     end
 
     assert_raise RuntimeError, "float value \"Infinity\" is not supported", fn ->
-      Req.post!(req, bigquery: "SELECT CAST('+inf' AS FLOAT64)").body.rows |> Stream.run()
+      run_custom_query(req, "SELECT CAST('+inf' AS FLOAT64)")
     end
 
     assert_raise RuntimeError, "float value \"NaN\" is not supported", fn ->
-      Req.post!(req, bigquery: "SELECT CAST('NaN' AS FLOAT64)").body.rows |> Stream.run()
+      run_custom_query(req, "SELECT CAST('NaN' AS FLOAT64)")
     end
+  end
+
+  defp run_decoding_query(req, input) do
+    result = Req.post!(req, bigquery: {"SELECT ?", [input]}).body
+    Enum.to_list(result.rows)
+  end
+
+  defp run_custom_query(req, query) do
+    Req.post!(req, bigquery: query).body.rows |> Enum.to_list()
   end
 end
