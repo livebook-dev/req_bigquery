@@ -249,7 +249,7 @@ defmodule IntegrationTest do
 
     value = String.to_float("3.402823466E+38")
 
-    assert run_decoding_query(req, value) |> Enum.to_list() == [[value]]
+    assert run_decoding_query(req, value) == [[value]]
 
     value = Date.utc_today()
 
