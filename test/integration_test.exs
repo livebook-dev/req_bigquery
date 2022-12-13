@@ -295,6 +295,6 @@ defmodule IntegrationTest do
 
   defp run_custom_query(req, query) do
     result = Req.post!(req, bigquery: query).body
-    Enum.to_list(result)
+    Enum.to_list(result.rows)
   end
 end
