@@ -261,7 +261,7 @@ defmodule IntegrationTest do
 
     value = NaiveDateTime.utc_now()
 
-    assert run_decoding_query(req, value) |> Enum.to_list() == [[value]]
+    assert run_decoding_query(req, value) == [[value]]
 
     value = DateTime.utc_now()
 
