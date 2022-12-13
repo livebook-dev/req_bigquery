@@ -3,12 +3,12 @@ defmodule IntegrationTest do
   @moduletag :integration
 
   test "returns the Google BigQuery's response", %{test: goth} do
-    project_id = System.fetch_env!("PROJECT_ID")
-
     credentials =
       System.get_env("GOOGLE_APPLICATION_CREDENTIALS", "credentials.json")
       |> File.read!()
       |> Jason.decode!()
+
+    project_id = System.get_env("PROJECT_ID", credentials["project_id"])
 
     source = {:service_account, credentials, []}
     start_supervised!({Goth, name: goth, source: source, http_client: &Req.request/1})
@@ -33,8 +33,9 @@ defmodule IntegrationTest do
 
     assert result.columns == ["title", "views"]
     assert result.num_rows == 10
+    rows = result.rows |> Enum.to_list()
 
-    assert result.rows == [
+    assert rows == [
              ["The_Beatles", 13_758_950],
              ["Queen_(band)", 12_019_563],
              ["Pink_Floyd", 9_522_503],
@@ -48,13 +49,48 @@ defmodule IntegrationTest do
            ]
   end
 
-  test "returns the Google BigQuery's response without rows", %{test: goth} do
-    project_id = System.fetch_env!("PROJECT_ID")
-
+  test "requests new pages and brings all the rows when max_results (paging) < response num_rows",
+       %{test: goth} do
     credentials =
       System.get_env("GOOGLE_APPLICATION_CREDENTIALS", "credentials.json")
       |> File.read!()
       |> Jason.decode!()
+
+    project_id = System.get_env("PROJECT_ID", credentials["project_id"])
+    source = {:service_account, credentials, []}
+    start_supervised!({Goth, name: goth, source: source, http_client: &Req.request/1})
+
+    query = """
+    SELECT *
+      FROM `bigquery-public-data.wikipedia.table_bands`
+      ORDER BY datehour asc
+      LIMIT 10
+    """
+
+    response =
+      Req.new()
+      |> ReqBigQuery.attach(project_id: project_id, goth: goth, max_results: 2)
+      |> Req.post!(bigquery: query)
+
+    result = response.body
+
+    assert %Stream{} = result.rows
+
+    assert Enum.take(result.rows, 4) == [
+             [~U[2015-05-01 01:00:00.000000Z], "Butter_08", 1],
+             [~U[2015-05-01 01:00:00.000000Z], "The_Pipkins", 1],
+             [~U[2015-05-01 01:00:00.000000Z], "Project_One", 1],
+             [~U[2015-05-01 01:00:00.000000Z], "Gatibu", 1]
+           ]
+  end
+
+  test "returns the Google BigQuery's response without rows", %{test: goth} do
+    credentials =
+      System.get_env("GOOGLE_APPLICATION_CREDENTIALS", "credentials.json")
+      |> File.read!()
+      |> Jason.decode!()
+
+    project_id = System.get_env("PROJECT_ID", credentials["project_id"])
 
     source = {:service_account, credentials, []}
     start_supervised!({Goth, name: goth, source: source, http_client: &Req.request/1})
@@ -82,12 +118,12 @@ defmodule IntegrationTest do
   end
 
   test "returns the Google BigQuery's response with parameterized query", %{test: goth} do
-    project_id = System.fetch_env!("PROJECT_ID")
-
     credentials =
       System.get_env("GOOGLE_APPLICATION_CREDENTIALS", "credentials.json")
       |> File.read!()
       |> Jason.decode!()
+
+    project_id = System.get_env("PROJECT_ID", credentials["project_id"])
 
     source = {:service_account, credentials, []}
     start_supervised!({Goth, name: goth, source: source, http_client: &Req.request/1})
@@ -113,7 +149,7 @@ defmodule IntegrationTest do
     assert result.columns == ["year", "views"]
     assert result.num_rows == 7
 
-    assert result.rows == [
+    assert Enum.to_list(result.rows) == [
              [2017, 2_895_889],
              [2016, 1_173_359],
              [2018, 1_133_770],
@@ -127,12 +163,12 @@ defmodule IntegrationTest do
   test "returns the Google BigQuery's response with more than one parameterized query", %{
     test: goth
   } do
-    project_id = System.fetch_env!("PROJECT_ID")
-
     credentials =
       System.get_env("GOOGLE_APPLICATION_CREDENTIALS", "credentials.json")
       |> File.read!()
       |> Jason.decode!()
+
+    project_id = System.get_env("PROJECT_ID", credentials["project_id"])
 
     source = {:service_account, credentials, []}
     start_supervised!({Goth, name: goth, source: source, http_client: &Req.request/1})
@@ -156,18 +192,19 @@ defmodule IntegrationTest do
     assert result.columns == ["en_description"]
     assert result.num_rows == 1
 
-    assert result.rows == [["fruit of the apple tree"]]
+    rows = Enum.to_list(result.rows)
+    assert rows == [["fruit of the apple tree"]]
   end
 
   test "encodes and decodes types received from Google BigQuery's response", %{
     test: goth
   } do
-    project_id = System.fetch_env!("PROJECT_ID")
-
     credentials =
       System.get_env("GOOGLE_APPLICATION_CREDENTIALS", "credentials.json")
       |> File.read!()
       |> Jason.decode!()
+
+    project_id = System.get_env("PROJECT_ID", credentials["project_id"])
 
     source = {:service_account, credentials, []}
     start_supervised!({Goth, name: goth, source: source, http_client: &Req.request/1})
@@ -175,63 +212,89 @@ defmodule IntegrationTest do
     req = Req.new() |> ReqBigQuery.attach(project_id: project_id, goth: goth)
 
     value = Decimal.new("1.1")
-    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows == [[value]]
+
+    assert run_decoding_query(req, value) == [[value]]
 
     decimal = Decimal.new("1.10")
-    assert Req.post!(req, bigquery: {"SELECT ?", [decimal]}).body.rows == [[value]]
+
+    assert run_decoding_query(req, decimal) == [[value]]
 
     value = Decimal.new("-1.1")
-    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows == [[value]]
+
+    assert run_decoding_query(req, value) == [[value]]
 
     value = "req"
-    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows == [[value]]
+
+    assert run_decoding_query(req, value) == [[value]]
 
     value = 1
-    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows == [[value]]
+
+    assert run_decoding_query(req, value) == [[value]]
 
     value = 1.1
-    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows == [[value]]
+
+    assert run_decoding_query(req, value) == [[value]]
 
     value = -1.1
-    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows == [[value]]
+
+    assert run_decoding_query(req, value) == [[value]]
 
     value = true
-    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows == [[value]]
+
+    assert run_decoding_query(req, value) == [[value]]
 
     value = String.to_float("1.175494351E-38")
-    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows == [[value]]
+
+    assert run_decoding_query(req, value) == [[value]]
 
     value = String.to_float("3.402823466E+38")
-    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows == [[value]]
+
+    assert run_decoding_query(req, value) == [[value]]
 
     value = Date.utc_today()
-    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows == [[value]]
+
+    assert run_decoding_query(req, value) == [[value]]
 
     value = Time.utc_now()
-    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows == [[value]]
+
+    assert run_decoding_query(req, value) == [[value]]
 
     value = NaiveDateTime.utc_now()
-    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows == [[value]]
+
+    assert run_decoding_query(req, value) == [[value]]
 
     value = DateTime.utc_now()
-    assert Req.post!(req, bigquery: {"SELECT ?", [value]}).body.rows == [[value]]
+
+    assert run_decoding_query(req, value) == [[value]]
 
     value = %{"id" => 1}
-    assert Req.post!(req, bigquery: "SELECT STRUCT(1 AS id)").body.rows == [[value]]
+
+    assert run_custom_query(req, "SELECT STRUCT(1 AS id)") == [[value]]
 
     value = %{"ids" => [10, 20]}
-    assert Req.post!(req, bigquery: "SELECT STRUCT([10,20] AS ids)").body.rows == [[value]]
+
+    assert run_custom_query(req, "SELECT STRUCT([10,20] AS ids)") == [[value]]
 
     assert_raise RuntimeError, "float value \"-Infinity\" is not supported", fn ->
-      Req.post!(req, bigquery: "SELECT CAST('-inf' AS FLOAT64)")
+      run_custom_query(req, "SELECT CAST('-inf' AS FLOAT64)")
     end
 
     assert_raise RuntimeError, "float value \"Infinity\" is not supported", fn ->
-      Req.post!(req, bigquery: "SELECT CAST('+inf' AS FLOAT64)")
+      run_custom_query(req, "SELECT CAST('+inf' AS FLOAT64)")
     end
 
     assert_raise RuntimeError, "float value \"NaN\" is not supported", fn ->
-      Req.post!(req, bigquery: "SELECT CAST('NaN' AS FLOAT64)")
+      run_custom_query(req, "SELECT CAST('NaN' AS FLOAT64)")
     end
+  end
+
+  defp run_decoding_query(req, input) do
+    result = Req.post!(req, bigquery: {"SELECT ?", [input]}).body
+    Enum.to_list(result.rows)
+  end
+
+  defp run_custom_query(req, query) do
+    result = Req.post!(req, bigquery: query).body
+    Enum.to_list(result.rows)
   end
 end
