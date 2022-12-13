@@ -181,7 +181,7 @@ defmodule ReqBigQuery do
     %Result{
       job_id: job_id,
       num_rows: String.to_integer(num_rows),
-      rows: rows_stream(initial_response, request_options) |> decode_rows(fields),
+      rows: initial_response |> rows_stream(request_options) |> decode_rows(fields),
       columns: decode_columns(fields)
     }
   end
