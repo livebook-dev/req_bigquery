@@ -43,8 +43,9 @@ res = Req.post!(req, bigquery: query).body
 #   job_id: "job_JDDZKquJWkY7x0LlDcmZ4nMQqshb",
 #   num_rows: 10,
 #   rows: %Stream{}
+# }
 
-iex> Enum.to_list(res.rows)
+Enum.to_list(res.rows)
 # [
 #   ["The_Beatles", 13758950],
 #   ["Queen_(band)", 12019563],
