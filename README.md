@@ -36,25 +36,27 @@ SELECT title, SUM(views) AS views
 """
 
 req = Req.new() |> ReqBigQuery.attach(goth: MyGoth, project_id: project_id)
-Req.post!(req, bigquery: query).body
+res = Req.post!(req, bigquery: query).body
 #=>
 # %ReqBigQuery.Result{
 #   columns: ["title", "views"],
 #   job_id: "job_JDDZKquJWkY7x0LlDcmZ4nMQqshb",
 #   num_rows: 10,
-#   rows: [
-#     ["The_Beatles", 13758950],
-#     ["Queen_(band)", 12019563],
-#     ["Pink_Floyd", 9522503],
-#     ["AC/DC", 8972364],
-#     ["Led_Zeppelin", 8294994],
-#     ["Linkin_Park", 8242802],
-#     ["The_Rolling_Stones", 7825952],
-#     ["Red_Hot_Chili_Peppers", 7302904],
-#     ["Fleetwood_Mac", 7199563],
-#     ["Twenty_One_Pilots", 6970692]
-#   ]
-# }
+#   rows: %Stream{}
+
+iex> Enum.to_list(res.rows)
+# [
+#   ["The_Beatles", 13758950],
+#   ["Queen_(band)", 12019563],
+#   ["Pink_Floyd", 9522503],
+#   ["AC/DC", 8972364],
+#   ["Led_Zeppelin", 8294994],
+#   ["Linkin_Park", 8242802],
+#   ["The_Rolling_Stones", 7825952],
+#   ["Red_Hot_Chili_Peppers", 7302904],
+#   ["Fleetwood_Mac", 7199563],
+#   ["Twenty_One_Pilots", 6970692]
+# ]
 
 # With parameterized query
 query = """
@@ -67,14 +69,17 @@ SELECT EXTRACT(YEAR FROM datehour) AS year, SUM(views) AS views
 """
 
 req = Req.new() |> ReqBigQuery.attach(goth: MyGoth, project_id: project_id)
-Req.post!(req, bigquery: {query, ["Linkin_Park"]}).body
+res = Req.post!(req, bigquery: {query, ["Linkin_Park"]}).body
 #=>
 # %ReqBigQuery.Result{
 #   columns: ["year", "views"],
 #   job_id: "job_GXiJvALNsTAoAOJ39Eg3Mw94XMUQ",
 #   num_rows: 7,
-#   rows: [[2017, 2895889], [2016, 1173359], [2018, 1133770], [2020, 906538], [2015, 860899], [2019, 790747], [2021, 481600]]
+#   rows: %Stream{}
 # }
+
+Enum.to_list(res.rows)
+#=> [[2017, 2895889], [2016, 1173359], [2018, 1133770], [2020, 906538], [2015, 860899], [2019, 790747], [2021, 481600]]
 ```
 
 ## License
