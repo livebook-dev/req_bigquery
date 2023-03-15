@@ -46,6 +46,7 @@ res = Req.post!(req, bigquery: query).body
 # }
 
 Enum.to_list(res.rows)
+#=>
 # [
 #   ["The_Beatles", 13758950],
 #   ["Queen_(band)", 12019563],
