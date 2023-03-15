@@ -1,7 +1,7 @@
 defmodule ReqBigQuery.MixProject do
   use Mix.Project
 
-  @version "0.1.0"
+  @version "0.1.1"
   @description "Req plugin for Google BigQuery"
 
   def project do
@@ -42,7 +42,7 @@ defmodule ReqBigQuery.MixProject do
   defp deps do
     [
       {:decimal, "~> 2.0"},
-      {:req, "~> 0.3.0"},
+      {:req, "~> 0.3.5"},
       {:goth, "~> 1.3.0"},
       {:table, "~> 0.1.1", optional: true},
       {:ex_doc, ">= 0.0.0", only: :docs, runtime: false}
