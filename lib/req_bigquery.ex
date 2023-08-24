@@ -117,14 +117,16 @@ defmodule ReqBigQuery do
 
   defp run(%Request{options: options} = request) do
     if query = options[:bigquery] do
+      goth = options[:goth] || raise ":goth is missing"
+      project_id = options[:project_id] || raise ":project_id is missing"
       base_url = options[:base_url]
-      token = Goth.fetch!(options.goth).token
-      uri = URI.parse("#{base_url}/projects/#{options.project_id}/queries")
+      token = Goth.fetch!(goth).token
+      uri = URI.parse("#{base_url}/projects/#{project_id}/queries")
 
       json =
         query
         |> build_request_body(options[:default_dataset_id])
-        |> Map.put(:maxResults, options.max_results)
+        |> Map.put(:maxResults, options[:max_results])
 
       %{request | url: uri}
       |> Request.merge_options(auth: {:bearer, token}, json: json)
@@ -225,10 +227,10 @@ defmodule ReqBigQuery do
   defp page_request(options, project_id, job_id, page_token) do
     uri =
       URI.parse(
-        "#{@base_url}/projects/#{project_id}/queries/#{job_id}?maxResults=#{options.max_results}&pageToken=#{page_token}"
+        "#{@base_url}/projects/#{project_id}/queries/#{job_id}?maxResults=#{options[:max_results]}&pageToken=#{page_token}"
       )
 
-    token = Goth.fetch!(options.goth).token
+    token = Goth.fetch!(options[:goth]).token
 
     Req.new(url: uri)
     |> Request.merge_options(auth: {:bearer, token})
