@@ -1,7 +1,7 @@
 defmodule ReqBigQuery.MixProject do
   use Mix.Project
 
-  @version "0.1.1"
+  @version "0.1.2"
   @description "Req plugin for Google BigQuery"
 
   def project do
