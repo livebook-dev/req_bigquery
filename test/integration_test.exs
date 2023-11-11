@@ -2,6 +2,38 @@ defmodule IntegrationTest do
   use ExUnit.Case, async: true
   @moduletag :integration
 
+  test "returns the Google BigQuery's response when BigQuery's GoogleSQL is used and default dataset is attached",
+       %{
+         test: goth
+       } do
+    credentials =
+      System.get_env("GOOGLE_APPLICATION_CREDENTIALS", "credentials.json")
+      |> File.read!()
+      |> Jason.decode!()
+
+    project_id = System.get_env("PROJECT_ID", credentials["project_id"])
+
+    source = {:service_account, credentials, []}
+    start_supervised!({Goth, name: goth, source: source, http_client: &Req.request/1})
+
+    # DATE_DIFF is not supported by BigQuery's legacy SQL.
+    # But the default value of useLegacySql is true.
+    # So the query fails if it is not changed to false.
+    query = """
+    SELECT *
+    FROM `bigquery-public-data.wikipedia.table_bands`
+    WHERE DATE_DIFF(CURRENT_DATE, CAST(datehour AS DATE), DAY) > 14
+    LIMIT 10
+    """
+
+    response =
+      Req.new()
+      |> ReqBigQuery.attach(project_id: project_id, default_dataset_id: "wikipedia", goth: goth)
+      |> Req.post!(bigquery: query)
+
+    assert response.status == 200
+  end
+
   test "returns the Google BigQuery's response", %{test: goth} do
     credentials =
       System.get_env("GOOGLE_APPLICATION_CREDENTIALS", "credentials.json")
