@@ -127,6 +127,7 @@ defmodule ReqBigQuery do
         query
         |> build_request_body(options[:default_dataset_id])
         |> Map.put(:maxResults, options[:max_results])
+        |> Map.put(:useLegacySql, false)
 
       %{request | url: uri}
       |> Request.merge_options(auth: {:bearer, token}, json: json)
@@ -157,7 +158,7 @@ defmodule ReqBigQuery do
   end
 
   defp build_request_body(query, dataset) when dataset in ["", nil] do
-    %{query: query, useLegacySql: false}
+    %{query: query}
   end
 
   defp build_request_body(query, dataset) when is_binary(query) do
