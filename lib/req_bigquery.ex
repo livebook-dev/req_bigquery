@@ -10,9 +10,10 @@ defmodule ReqBigQuery do
   alias Req.Request
   alias ReqBigQuery.Result
 
-  @allowed_options ~w(goth default_dataset_id project_id bigquery max_results)a
+  @allowed_options ~w(goth default_dataset_id project_id bigquery max_results use_legacy_sql)a
   @base_url "https://bigquery.googleapis.com/bigquery/v2"
   @max_results 10_000
+  @use_legacy_sql false
 
   @doc """
   Attaches to Req request.
@@ -34,6 +35,10 @@ defmodule ReqBigQuery do
     * `:max_results` - Optional. Number of rows to be returned by BigQuery in each request (paging).
       The rows Stream can make multiple requests if `num_rows` returned is grather than `:max_results`.
       Defaults to 10000.
+
+    * `:use_legacy_sql` - Optional. Specifies whether to use BigQuery's legacy SQL dialect for this query.
+      If set to false, the query will use BigQuery's GoogleSQL: https://cloud.google.com/bigquery/sql-reference/
+      The default value is false.
 
   If you want to set any of these options when attaching the plugin, pass them as the second argument.
 
@@ -108,6 +113,7 @@ defmodule ReqBigQuery do
       options
       |> Keyword.put_new(:base_url, @base_url)
       |> Keyword.put_new(:max_results, @max_results)
+      |> Keyword.put_new(:use_legacy_sql, @use_legacy_sql)
 
     request
     |> Request.prepend_request_steps(bigquery_run: &run/1)
@@ -127,7 +133,7 @@ defmodule ReqBigQuery do
         query
         |> build_request_body(options[:default_dataset_id])
         |> Map.put(:maxResults, options[:max_results])
-        |> Map.put(:useLegacySql, false)
+        |> Map.put(:useLegacySql, options[:use_legacy_sql])
 
       %{request | url: uri}
       |> Request.merge_options(auth: {:bearer, token}, json: json)
