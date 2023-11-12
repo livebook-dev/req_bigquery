@@ -19,7 +19,7 @@ defmodule ReqBigQueryTest do
                "defaultDataset" => %{"datasetId" => "my_awesome_dataset"},
                "query" => "select * from iris",
                "maxResults" => 10000,
-               "useLegacySql" => false
+               "useLegacySql" => true
              }
 
       assert URI.to_string(request.url) ==
@@ -50,7 +50,8 @@ defmodule ReqBigQueryTest do
     opts = [
       goth: ctx.test,
       project_id: "my_awesome_project_id",
-      default_dataset_id: "my_awesome_dataset"
+      default_dataset_id: "my_awesome_dataset",
+      use_legacy_sql: true
     ]
 
     assert response =
