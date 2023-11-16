@@ -19,7 +19,8 @@ defmodule ReqBigQueryTest do
                "defaultDataset" => %{"datasetId" => "my_awesome_dataset"},
                "query" => "select * from iris",
                "maxResults" => 10000,
-               "useLegacySql" => true
+               "useLegacySql" => true,
+               "timeoutMs" => 20000
              }
 
       assert URI.to_string(request.url) ==
@@ -51,7 +52,8 @@ defmodule ReqBigQueryTest do
       goth: ctx.test,
       project_id: "my_awesome_project_id",
       default_dataset_id: "my_awesome_dataset",
-      use_legacy_sql: true
+      use_legacy_sql: true,
+      timeout_ms: 20_000
     ]
 
     assert response =
@@ -96,7 +98,8 @@ defmodule ReqBigQueryTest do
                  }
                ],
                "useLegacySql" => false,
-               "maxResults" => 10000
+               "maxResults" => 10000,
+               "timeoutMs" => 10000
              }
 
       assert URI.to_string(request.url) ==
