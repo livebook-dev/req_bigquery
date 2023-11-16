@@ -41,10 +41,11 @@ defmodule ReqBigQuery do
       If set to false, the query will use BigQuery's GoogleSQL: https://cloud.google.com/bigquery/sql-reference/
       The default value is false.
 
-    * `:timeout_ms` - Optional. How long to wait for the query to complete, in milliseconds, before the request times out and returns.
-      Note: The call is not guaranteed to wait for the specified timeout. If the query takes longer to run than the timeout value,
-      the call returns without any results and with the 'jobComplete' flag set to false. You can call GetQueryResults() to wait for the query to complete and read the results.
-      The default value is 10000 milliseconds (10 seconds).
+    * `:timeout_ms` - Optional. How long to wait for the query to complete, in milliseconds,
+      before the request times out and returns. Note: The call is not guaranteed to wait for
+      the specified timeout. If the query takes longer to run than the timeout value, the call
+      returns without any results and with the 'jobComplete' flag set to false. The default
+      value is 10000 milliseconds (10 seconds).
 
   If you want to set any of these options when attaching the plugin, pass them as the second argument.
 
