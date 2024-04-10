@@ -20,7 +20,8 @@ defmodule ReqBigQueryTest do
                "query" => "select * from iris",
                "maxResults" => 10000,
                "useLegacySql" => true,
-               "timeoutMs" => 20000
+               "timeoutMs" => 20000,
+               "dryRun" => false
              }
 
       assert URI.to_string(request.url) ==
@@ -42,7 +43,8 @@ defmodule ReqBigQueryTest do
             %{mode: "NULLABLE", name: "name", type: "STRING"}
           ]
         },
-        totalRows: "2"
+        totalRows: "2",
+        totalBytesProcessed: "1547899"
       }
 
       {request, Req.Response.json(data)}
@@ -99,7 +101,8 @@ defmodule ReqBigQueryTest do
                ],
                "useLegacySql" => false,
                "maxResults" => 10000,
-               "timeoutMs" => 10000
+               "timeoutMs" => 10000,
+               "dryRun" => true
              }
 
       assert URI.to_string(request.url) ==
@@ -121,7 +124,8 @@ defmodule ReqBigQueryTest do
             %{mode: "NULLABLE", name: "name", type: "STRING"}
           ]
         },
-        totalRows: "2"
+        totalRows: "2",
+        totalBytesProcessed: "1547899"
       }
 
       {request, Req.Response.json(data)}
@@ -130,7 +134,8 @@ defmodule ReqBigQueryTest do
     opts = [
       goth: ctx.test,
       project_id: "my_awesome_project_id",
-      default_dataset_id: "my_awesome_dataset"
+      default_dataset_id: "my_awesome_dataset",
+      dry_run: true
     ]
 
     assert response =
@@ -148,6 +153,75 @@ defmodule ReqBigQueryTest do
            } = response.body
 
     assert Enum.to_list(response.body.rows) == [[1, "Ale"], [2, "Wojtek"]]
+  end
+
+  test "executes a dry run query", ctx do
+    fake_goth = fn request ->
+      data = %{access_token: "dummy", expires_in: 3599, token_type: "Bearer"}
+      {request, Req.Response.json(data)}
+    end
+
+    start_supervised!(
+      {Goth,
+       name: ctx.test,
+       source: {:service_account, goth_credentials(), []},
+       http_client: {&Req.request/1, adapter: fake_goth}}
+    )
+
+    fake_bigquery = fn request ->
+      assert Jason.decode!(request.body) == %{
+               "defaultDataset" => %{"datasetId" => "my_awesome_dataset"},
+               "query" => "select * from iris",
+               "maxResults" => 10000,
+               "useLegacySql" => true,
+               "timeoutMs" => 20000,
+               "dryRun" => true
+             }
+
+      assert URI.to_string(request.url) ==
+               "https://bigquery.googleapis.com/bigquery/v2/projects/my_awesome_project_id/queries"
+
+      assert Req.Request.get_header(request, "content-type") == ["application/json"]
+      assert Req.Request.get_header(request, "authorization") == ["Bearer dummy"]
+
+      data = %{
+        jobReference: %{},
+        kind: "bigquery#queryResponse",
+        schema: %{
+          fields: [
+            %{mode: "NULLABLE", name: "id", type: "INTEGER"},
+            %{mode: "NULLABLE", name: "name", type: "STRING"}
+          ]
+        },
+        totalBytesProcessed: "1547899"
+      }
+
+      {request, Req.Response.json(data)}
+    end
+
+    opts = [
+      goth: ctx.test,
+      project_id: "my_awesome_project_id",
+      default_dataset_id: "my_awesome_dataset",
+      use_legacy_sql: true,
+      timeout_ms: 20_000,
+      dry_run: true
+    ]
+
+    assert response =
+             Req.new(adapter: fake_bigquery)
+             |> ReqBigQuery.attach(opts)
+             |> Req.post!(bigquery: "select * from iris")
+
+    assert response.status == 200
+
+    assert %ReqBigQuery.Result{
+             columns: ["id", "name"],
+             job_id: nil,
+             num_rows: 0,
+             rows: [],
+             total_bytes_processed: 1_547_899
+           } = response.body
   end
 
   defp goth_credentials do
