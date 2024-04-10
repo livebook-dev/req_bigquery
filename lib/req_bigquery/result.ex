@@ -8,17 +8,19 @@ defmodule ReqBigQuery.Result do
     * `rows` - The result set. A list of lists, each inner list corresponding to a
       row, each element in the inner list corresponds to a column;
     * `num_rows` - The number of fetched or affected rows;
-    * `job_id` - The ID of the Google BigQuery's executed job.
+    * `total_bytes_processed` - The total number of bytes processed for the query;
+    * `job_id` - The ID of the Google BigQuery's executed job. Returns nil for dry runs.
   """
 
   @type t :: %__MODULE__{
           columns: [String.t()],
           rows: [[term()] | binary()],
           num_rows: non_neg_integer(),
-          job_id: binary()
+          total_bytes_processed: non_neg_integer(),
+          job_id: binary() | nil
         }
 
-  defstruct [:job_id, num_rows: 0, rows: [], columns: []]
+  defstruct [:job_id, :total_bytes_processed, num_rows: 0, rows: [], columns: []]
 end
 
 if Code.ensure_loaded?(Table.Reader) do

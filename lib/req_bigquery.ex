@@ -10,7 +10,7 @@ defmodule ReqBigQuery do
   alias Req.Request
   alias ReqBigQuery.Result
 
-  @allowed_options ~w(goth default_dataset_id project_id bigquery max_results use_legacy_sql timeout_ms)a
+  @allowed_options ~w(goth default_dataset_id project_id bigquery max_results use_legacy_sql timeout_ms dry_run)a
   @base_url "https://bigquery.googleapis.com/bigquery/v2"
   @max_results 10_000
   @use_legacy_sql false
@@ -47,6 +47,8 @@ defmodule ReqBigQuery do
       returns without any results and with the 'jobComplete' flag set to false. The default
       value is 10000 milliseconds (10 seconds).
 
+    * `:dry_run` - Optional. Specifies whether to run the given query in dry run mode.
+
   If you want to set any of these options when attaching the plugin, pass them as the second argument.
 
   ## Examples
@@ -72,6 +74,7 @@ defmodule ReqBigQuery do
         columns: ["title", "views"],
         job_id: "job_JDDZKquJWkY7x0LlDcmZ4nMQqshb",
         num_rows: 10,
+        total_bytes_processed: 18161868216,
         rows: %Stream{}
       }
       iex> Enum.to_list(res.rows)
@@ -108,6 +111,7 @@ defmodule ReqBigQuery do
         columns: ["year", "views"],
         job_id: "job_GXiJvALNsTAoAOJ39Eg3Mw94XMUQ",
         num_rows: 7,
+        total_bytes_processed: 15686357820,
         rows: %Stream{}
       }
       iex> Enum.to_list(res.rows)
@@ -143,6 +147,7 @@ defmodule ReqBigQuery do
         |> Map.put(:maxResults, options[:max_results])
         |> Map.put(:useLegacySql, options[:use_legacy_sql])
         |> Map.put(:timeoutMs, options[:timeout_ms])
+        |> Map.put(:dryRun, options[:dry_run] || false)
 
       %{request | url: uri}
       |> Request.merge_options(auth: {:bearer, token}, json: json)
@@ -192,13 +197,15 @@ defmodule ReqBigQuery do
            "kind" => "bigquery#queryResponse",
            "rows" => _rows,
            "schema" => %{"fields" => fields},
-           "totalRows" => num_rows
+           "totalRows" => num_rows,
+           "totalBytesProcessed" => total_bytes
          } = initial_response,
          request_options
        ) do
     %Result{
       job_id: job_id,
       num_rows: String.to_integer(num_rows),
+      total_bytes_processed: String.to_integer(total_bytes),
       rows: initial_response |> rows_stream(request_options) |> decode_rows(fields),
       columns: decode_columns(fields)
     }
@@ -209,13 +216,33 @@ defmodule ReqBigQuery do
            "jobReference" => %{"jobId" => job_id},
            "kind" => "bigquery#queryResponse",
            "schema" => %{"fields" => fields},
-           "totalRows" => num_rows
+           "totalRows" => num_rows,
+           "totalBytesProcessed" => total_bytes
          },
          _request_options
        ) do
     %Result{
       job_id: job_id,
       num_rows: String.to_integer(num_rows),
+      total_bytes_processed: String.to_integer(total_bytes),
+      rows: [],
+      columns: decode_columns(fields)
+    }
+  end
+
+  defp decode_body(
+         %{
+           "jobReference" => %{},
+           "kind" => "bigquery#queryResponse",
+           "schema" => %{"fields" => fields},
+           "totalBytesProcessed" => total_bytes
+         },
+         _request_options
+       ) do
+    %Result{
+      job_id: nil,
+      num_rows: 0,
+      total_bytes_processed: String.to_integer(total_bytes),
       rows: [],
       columns: decode_columns(fields)
     }

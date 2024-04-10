@@ -223,9 +223,47 @@ defmodule IntegrationTest do
 
     assert result.columns == ["en_description"]
     assert result.num_rows == 1
+    assert result.total_bytes_processed == 285_337
 
     rows = Enum.to_list(result.rows)
     assert rows == [["fruit of the apple tree"]]
+  end
+
+  test "returns the Google BigQuery's response with total processed bytes for a dry run request",
+       %{
+         test: goth
+       } do
+    credentials =
+      System.get_env("GOOGLE_APPLICATION_CREDENTIALS", "credentials.json")
+      |> File.read!()
+      |> Jason.decode!()
+
+    project_id = System.get_env("PROJECT_ID", credentials["project_id"])
+
+    source = {:service_account, credentials, []}
+    start_supervised!({Goth, name: goth, source: source, http_client: &Req.request/1})
+
+    query = """
+    SELECT en_description
+      FROM `bigquery-public-data.wikipedia.wikidata`
+     WHERE id = ?
+       AND numeric_id = ?
+    """
+
+    response =
+      Req.new()
+      |> ReqBigQuery.attach(project_id: project_id, goth: goth)
+      |> Req.post!(bigquery: {query, ["Q89", 89]}, dry_run: true)
+
+    assert response.status == 200
+
+    result = response.body
+
+    assert result.total_bytes_processed == 285_337
+    assert result.columns == ["en_description"]
+    assert result.num_rows == 0
+    assert result.job_id == nil
+    assert result.rows == []
   end
 
   test "encodes and decodes types received from Google BigQuery's response", %{
