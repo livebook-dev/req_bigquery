@@ -255,9 +255,13 @@ defmodule ReqBigQuery do
 
       %{
         "pageToken" => page_token,
-        "jobReference" => %{"jobId" => job_id, "projectId" => project_id}
+        "jobReference" => job_reference
       } ->
-        resp = page_request(request_options, project_id, job_id, page_token)
+        %{"jobId" => job_id, "projectId" => project_id} = job_reference
+
+        job_location = Map.get(job_reference, "location")
+
+        resp = page_request(request_options, project_id, job_id, job_location, page_token)
         {resp.body["rows"], resp.body}
 
       _end ->
@@ -267,11 +271,17 @@ defmodule ReqBigQuery do
     |> Stream.flat_map(& &1)
   end
 
-  defp page_request(options, project_id, job_id, page_token) do
+  defp page_request(options, project_id, job_id, job_location, page_token) do
     uri =
       URI.parse(
         "#{@base_url}/projects/#{project_id}/queries/#{job_id}?maxResults=#{options[:max_results]}&pageToken=#{page_token}"
       )
+
+    uri =
+      case job_location do
+        nil -> uri
+        job_location -> URI.append_query(uri, "location=#{job_location}")
+      end
 
     token = Goth.fetch!(options[:goth]).token
 
