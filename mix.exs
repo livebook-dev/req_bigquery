@@ -10,7 +10,7 @@ defmodule ReqBigQuery.MixProject do
       version: @version,
       description: @description,
       name: "ReqBigQuery",
-      elixir: "~> 1.12",
+      elixir: "~> 1.13",
       preferred_cli_env: [
         "test.all": :test,
         docs: :docs,
