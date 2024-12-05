@@ -14,7 +14,7 @@ The struct implements the `Table.Reader` protocol and thus can be efficiently tr
 Mix.install([
   {:goth, "~> 1.3.0"},
   {:req, "~> 0.3.5"},
-  {:req_bigquery, "~> 0.1.1"}
+  {:req_bigquery, "~> 0.1.5"}
 ])
 
 # We use Goth to authenticate to Google Cloud API.
