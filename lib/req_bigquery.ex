@@ -255,10 +255,11 @@ defmodule ReqBigQuery do
 
       %{
         "pageToken" => page_token,
-        "jobReference" => job_reference
+        "jobReference" => %{"jobId" => job_id, "projectId" => project_id} = job_reference
       } ->
-        %{"jobId" => job_id, "projectId" => project_id} = job_reference
-
+        # NOTE: The "location" attribute is optional and may be missing in the response.
+        # If it is missing, it will not match the pattern, so it is safer to access it using Map.get/2.
+        # For more details, see: https://cloud.google.com/bigquery/docs/reference/rest/v2/JobReference
         job_location = Map.get(job_reference, "location")
 
         resp = page_request(request_options, project_id, job_id, job_location, page_token)
