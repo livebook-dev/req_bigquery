@@ -1,5 +1,7 @@
 # ReqBigQuery
 
+**This library has been archived. Use [ADBC with BigQuery](https://github.com/elixir-explorer/adbc) instead.**
+
 [![Hex pm](http://img.shields.io/hexpm/v/req_bigquery.svg?style=flat)](https://hex.pm/packages/req_bigquery)
 
 [Req](https://github.com/wojtekmach/req) plugin for [Google BigQuery](https://cloud.google.com/bigquery/docs/reference/rest).
